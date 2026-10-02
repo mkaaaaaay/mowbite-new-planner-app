@@ -12,6 +12,7 @@ export function usePlannerEstimate(input: PlannerEstimateInput | null): {input: 
   const busy = useRef<{id: number; input: PlannerEstimateInput} | null>(null);
   const waiting = useRef<PlannerEstimateInput | null>(null);
   const count = useRef(0);
+  const loops = useRef<PlannerEstimate['loops'] | null>(null);
 
   useEffect(
     () => () => {
@@ -26,10 +27,14 @@ export function usePlannerEstimate(input: PlannerEstimateInput | null): {input: 
     if (worker.current === undefined) {
       try {
         worker.current = new Worker(new URL('./plannerEstimate.worker.ts', import.meta.url));
-        worker.current.onmessage = (e: MessageEvent<{id: number; result: PlannerEstimate | null}>) => {
+        worker.current.onmessage = (e: MessageEvent<{id: number; result: PlannerEstimate | null; sameLoops?: boolean}>) => {
           const done = busy.current;
           busy.current = null;
-          if (done && done.id === e.data.id) setAnswer({input: done.input, estimate: e.data.result});
+          let estimate = e.data.result;
+          // the loops as before (the worker sends them once per area)
+          if (estimate && e.data.sameLoops && loops.current) estimate = {...estimate, loops: loops.current};
+          if (estimate) loops.current = estimate.loops;
+          if (done && done.id === e.data.id) setAnswer({input: done.input, estimate});
           const queued = waiting.current;
           waiting.current = null;
           if (queued) post(queued);

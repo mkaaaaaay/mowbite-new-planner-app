@@ -928,8 +928,11 @@ function visitOrder(lanes: Lane[], laneOrder: string, turnRadius: number, bladeO
   return out;
 }
 
+// m, the loops on the map are simplified this much: a fraction of the points, and nothing to see
+const DRAWN = 0.005;
+
 // the rings of the paths, closed: the map draws them as loops
-const closed = (paths: Paths) => ringsOf(paths).map((r) => [...r, r[0]]);
+const closed = (paths: Paths) => ringsOf(paths).map((r) => simplifyLine([...r, r[0]], DRAWN));
 
 const angleDiff = (a: number, b: number) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
 const dist = (a: Point, b: Point) => Math.hypot(b.x - a.x, b.y - a.y);
