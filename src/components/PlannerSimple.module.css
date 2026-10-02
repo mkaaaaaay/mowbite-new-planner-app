@@ -1,0 +1,98 @@
+.simple {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 14px 14px;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.segment,
+.inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.segment button,
+.inline button {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  background: transparent;
+  color: var(--foreground);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.segment button:disabled,
+.inline button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.segment .on,
+.inline .on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.simple input {
+  width: 90px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: transparent;
+  color: var(--foreground);
+  font-size: 14px;
+}
+
+.note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.error {
+  color: var(--error, #ff5252);
+  font-size: 12px;
+}
+
+/* the full list of the planner's settings, behind a small switch */
+.expert {
+  margin: 0 14px 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.expert > summary {
+  cursor: pointer;
+  list-style: none;
+  text-decoration: underline;
+}
+
+.expert > summary::-webkit-details-marker {
+  display: none;
+}

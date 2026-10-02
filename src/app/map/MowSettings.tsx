@@ -89,6 +89,7 @@ export default function MowSettings({
   planAngle,
   planLength,
   planChosen,
+  byPlanner,
 }: {
   area: Area;
   autoAngle: number;
@@ -112,6 +113,8 @@ export default function MowSettings({
   planLength: number;
   // what the MowBite Planner plans the area with (the lane spacing it picked, the outline passes)
   planChosen?: PlanChosen;
+  // the MowBite Planner is on the mower: the outline passes are set in its menu, not here
+  byPlanner?: boolean;
 }) {
   const supported = useAreaProperties();
   const rate = savedRate();
@@ -138,26 +141,29 @@ export default function MowSettings({
   return (
     <div className={styles.mowSettings}>
       <span className={styles.cardTitle}>{tr('Mowing settings')}</span>
-      {number(
-        'outline_count',
-        'Outline passes',
-        "How many rounds the mower drives along the edge before it mows the inside in stripes. Empty means the mower's global setting.",
-        1,
-        0,
-      )}
-      {number(
-        'outline_overlap_count',
-        'Overlapping passes',
-        'How many of the edge rounds the stripes reach into, so no uncut strip is left between the edge and the stripes.',
-        1,
-        0,
-      )}
-      {number(
-        'outline_offset',
-        'Outline offset (m)',
-        'Moves the mowing boundary in (positive, more distance to beds and walls) or out (negative). -1 to 1 m.',
-        0.05,
-      )}
+      {!byPlanner &&
+        number(
+          'outline_count',
+          'Outline passes',
+          "How many rounds the mower drives along the edge before it mows the inside in stripes. Empty means the mower's global setting.",
+          1,
+          0,
+        )}
+      {!byPlanner &&
+        number(
+          'outline_overlap_count',
+          'Overlapping passes',
+          'How many of the edge rounds the stripes reach into, so no uncut strip is left between the edge and the stripes.',
+          1,
+          0,
+        )}
+      {!byPlanner &&
+        number(
+          'outline_offset',
+          'Outline offset (m)',
+          'Moves the mowing boundary in (positive, more distance to beds and walls) or out (negative). -1 to 1 m.',
+          0.05,
+        )}
       <label>
         <span>
           {tr('Mow angle (°)')}

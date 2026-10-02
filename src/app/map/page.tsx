@@ -42,6 +42,8 @@ import {Fold} from './Fold';
 import {useMowerBody, usePlannerSettings, type BodySpot} from '@/lib/mowerBody';
 import {MowerBodySettings} from '@/components/MowerBodySettings';
 import {PlannerSettings} from '@/components/PlannerSettings';
+import {PlannerSimple} from '@/components/PlannerSimple';
+import simpleStyles from '@/components/PlannerSimple.module.css';
 import settingsStyles from '../settings/page.module.css';
 
 // useSearchParams needs a suspense boundary in a static export
@@ -654,9 +656,13 @@ function MapEditor() {
                       with the area */}
                   {plannerSettings && (
                     <Fold id="plannerAll" title={tr('Planner for all areas')}>
-                      <div className={styles.foldCards}>
-                        <PlannerSettings styles={settingsStyles} />
-                      </div>
+                      <PlannerSimple toolWidth={toolWidth} />
+                      <details className={simpleStyles.expert}>
+                        <summary>{tr('All settings (expert)')}</summary>
+                        <div className={styles.foldCards}>
+                          <PlannerSettings styles={settingsStyles} />
+                        </div>
+                      </details>
                     </Fold>
                   )}
                   {plannerSettings && (
@@ -741,6 +747,7 @@ function MapEditor() {
                     previewCorrection={previewCorrection}
                     planFromMower={!!realPlan}
                     planChosen={plan?.chosen}
+                    byPlanner={!!plannerSettings}
                     planAngle={realPlan?.angle}
                     planLength={shownArea?.properties.mowable === false || shownArea?.properties.active === false ? 0 : planLength}
                     onPreviewCorrection={setPreviewCorrection}
@@ -750,7 +757,23 @@ function MapEditor() {
               )}
               {selectedArea && mode === 'idle' && simplifyCm === null && selectedArea.properties.type === 'mow' && plannerSettings && (
                 <Fold id="planner" title={tr('Planner for this area')}>
-                  <AreaPlanner properties={selectedArea.properties} update={updateProperties} remember={remember} />
+                  <PlannerSimple
+                    toolWidth={toolWidth}
+                    area={{
+                      own: selectedArea.properties.planner ?? {},
+                      passes: selectedArea.properties.outline_count,
+                      set: (key, value) => {
+                        const own = {...(selectedArea.properties.planner ?? {})};
+                        if (value === undefined || value === null) delete own[key];
+                        else own[key] = value;
+                        updateProperties({planner: Object.keys(own).length ? own : undefined});
+                      },
+                    }}
+                  />
+                  <details className={simpleStyles.expert}>
+                    <summary>{tr('All settings (expert)')}</summary>
+                    <AreaPlanner properties={selectedArea.properties} update={updateProperties} remember={remember} />
+                  </details>
                   {body && realPlan && <BodyCheck request={planRequest} onSpots={setBodySpots} />}
                 </Fold>
               )}

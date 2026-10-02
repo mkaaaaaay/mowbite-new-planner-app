@@ -31,12 +31,12 @@ const LABELS: Record<BodySetting, string> = {
 };
 
 type Styles = Record<string, string>;
-type Form = Record<BodySetting, string> & {edges: string};
+type Form = Record<BodySetting, string>;
 
 const cm = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? String(Math.round(v * 1000) / 10) : '');
 
 function formFrom(settings: Record<string, {value: unknown}> | undefined): Form {
-  const f = {edges: (settings?.edges?.value as string) ?? 'recorded'} as Form;
+  const f = {} as Form;
   for (const key of BODY_SETTINGS) f[key] = cm(settings?.[key]?.value);
   return f;
 }
@@ -128,7 +128,6 @@ export function MowerBodySettings({styles}: {styles: Styles}) {
       }
       if (!s.stored || typeof s.value !== 'number' || Math.abs(s.value - v) > 1e-6) changes[key] = Math.round(v * 10000) / 10000;
     }
-    if (known.edges && form.edges !== known.edges.value) changes.edges = form.edges;
     if (!Object.keys(changes).length) {
       setState({saved: true});
       return;
@@ -172,30 +171,6 @@ export function MowerBodySettings({styles}: {styles: Styles}) {
           </label>
         ))}
       </div>
-      {known.edges && (
-        <div className={styles.segment}>
-          <span>{tr('Lines of the map')}</span>
-          <button className={form.edges === 'recorded' ? styles.segmentOn : undefined} onClick={() => set('edges', 'recorded')}>
-            {tr('Driven along the edge')}
-          </button>
-          <button className={form.edges === 'hard' ? styles.segmentOn : undefined} onClick={() => set('edges', 'hard')}>
-            {tr('The wall itself')}
-          </button>
-        </div>
-      )}
-      {known.edges && (
-        <p className={styles.dim}>
-          {form.edges === 'hard'
-            ? tr('The lines are the edge itself (drawn on the map): nothing of the body goes beyond them.')
-            : known.body_tolerance
-              ? tr(
-                  'The lines are where the middle of the mower drove along the edge, like OpenMower records them: the body may be where it was then (half its width either side, the front past corners and on the outside of bends), and the leeway more.',
-                )
-              : tr(
-                  'The lines are where the middle of the mower drove along the edge, like OpenMower records them: the body may stick out half its width beyond them, as it did then, never further.',
-                )}
-        </p>
-      )}
       {missing.length > 0 && settings && (
         <p className={styles.error}>
           {tr('The planner on the mower is older and does not know all sizes yet ({which}), it needs a new image.', {
