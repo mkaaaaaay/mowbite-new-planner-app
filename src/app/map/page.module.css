@@ -542,3 +542,16 @@
     color: var(--foreground);
   }
 }
+
+/* the plan checked against the mower's body (MowBite Planner) */
+.bodyCheck {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.warningText {
+  color: #ffb74d;
+}

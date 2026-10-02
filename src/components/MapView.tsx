@@ -5,6 +5,7 @@ import {useComputedSpeed} from '@/hooks/useComputedSpeed';
 import {useEasedPose} from '@/hooks/useEasedPose';
 import {containsPoint, polygonArea} from '@/lib/geometry';
 import {settingsStore} from '@/lib/settings';
+import {bodyShape, useMowerBody} from '@/lib/mowerBody';
 import {dockIcon, mowerIcon} from './mapIcons';
 import {availableSources, imageryTiles, type Datum} from '@/lib/imagery';
 import {handleRadius, meterGrid} from '@/lib/mapGrid';
@@ -63,6 +64,8 @@ interface MapViewProps {
   orderLabels?: Record<string, number>;
   // spots to point out, e.g. where an error happened (red, pulsing)
   markers?: Point[];
+  // poses where the planner found the mower's body sticking out, drawn as the body there
+  bodySpots?: {x: number; y: number; yaw: number}[];
   // start zoomed in around this point instead of showing the whole map
   focus?: Point;
   // zoom and position are kept under this key while the app runs, e.g. across a visit to the settings
@@ -156,6 +159,7 @@ export default function MapView({
   preview,
   overlay,
   markers,
+  bodySpots,
   focus,
   viewKey,
   onClickEmpty,
@@ -208,6 +212,7 @@ export default function MapView({
   const pointers = useRef(new Map<number, {x: number; y: number}>());
   const gesture = useRef<{moved: boolean; pinchDist: number | null}>({moved: false, pinchDist: null});
   const smoothedMower = useEasedPose(mower ?? {x: 0, y: 0, heading: 0});
+  const body = useMowerBody();
   const displayMower = mower ? smoothedMower : undefined;
   const mowerSpeed = useComputedSpeed(mower);
   // which way a side view faces. it only turns once the mower clearly heads the other way, so it doesn't flicker while
@@ -793,10 +798,16 @@ export default function MapView({
 
         {displayMower &&
           (() => {
-            const [sx, sy] = toScreen(displayMower.x, displayMower.y);
+            const blades = track?.at(-1)?.at(-1)?.b === true;
+            // real size with the sizes the planner knows: the body, the blade and the point the mower follows,
+            // the icon in the middle of the body as long as it
+            const real = settings.icons?.mowerRealSize ? body : null;
+            const shape = real ? bodyShape(real, displayMower.x, displayMower.y, displayMower.heading) : null;
+            const [sx, sy] = toScreen(shape ? shape.middle.x : displayMower.x, shape ? shape.middle.y : displayMower.y);
             // same size on screen like the dock, or its real size (never smaller than a few pixels)
-            const base = settings.icons?.mowerRealSize ? Math.max(MOWER_SIZE * scale, 7 * k) : 8 * k;
-            const size = base * (settings.icons?.mowerSize ?? 1);
+            const realSize = real ? ((real.front + real.rear) / 2) * scale : MOWER_SIZE * scale;
+            const base = settings.icons?.mowerRealSize ? Math.max(realSize, 7 * k) : 8 * k;
+            const size = base * (real ? 1 : (settings.icons?.mowerSize ?? 1));
             // svg y points down, so the map's ccw heading becomes a cw rotation
             const deg = (-displayMower.heading * 180) / Math.PI;
             const icon = mowerIcon(settings.icons?.mower);
@@ -804,12 +815,30 @@ export default function MapView({
             // isn't turned with the heading at all, it only looks left or right. css, so it turns around instead of
             // flipping over at once
             const turn = !icon.side ? undefined : icon.upright ? `scaleX(${facing})` : `scaleY(${facing})`;
+            const [ax, ay] = toScreen(displayMower.x, displayMower.y);
             return (
-              <g className={styles.mower} transform={`translate(${sx} ${sy}) rotate(${icon.upright ? 0 : deg}) scale(${size})`}>
-                <g className={styles.turn} style={turn ? {transform: turn} : undefined}>
-                  {icon.draw({speed: mowerSpeed, emergency, blades: track?.at(-1)?.at(-1)?.b === true})}
+              <>
+                {real && shape && (
+                  <polygon
+                    className={styles.mowerBody}
+                    points={shape.corners.map((c) => toScreen(c.x, c.y).join(',')).join(' ')}
+                  />
+                )}
+                <g className={styles.mower} transform={`translate(${sx} ${sy}) rotate(${icon.upright ? 0 : deg}) scale(${size})`}>
+                  <g className={styles.turn} style={turn ? {transform: turn} : undefined}>
+                    {icon.draw({speed: mowerSpeed, emergency, blades})}
+                  </g>
                 </g>
-              </g>
+                {real && shape && real.blade > 0 && (
+                  <circle
+                    className={blades ? styles.mowerBladeOn : styles.mowerBlade}
+                    cx={toScreen(shape.blade.x, shape.blade.y)[0]}
+                    cy={toScreen(shape.blade.x, shape.blade.y)[1]}
+                    r={(real.blade / 2) * scale}
+                  />
+                )}
+                {real && <circle className={styles.mowerAxle} cx={ax} cy={ay} r={1.5 * k} />}
+              </>
             );
           })()}
 
@@ -909,6 +938,17 @@ export default function MapView({
       }}
     >
       {renderContent(k)}
+      {body &&
+        bodySpots?.map((s, i) => {
+          const shape = bodyShape(body, s.x, s.y, s.yaw);
+          return (
+            <polygon
+              key={'body' + i}
+              className={styles.bodyOut}
+              points={shape.corners.map((c) => toScreen(c.x, c.y).join(',')).join(' ')}
+            />
+          );
+        })}
       {/* last, so a spot at the dock isn't hidden under the mower */}
       {markers?.map((m, i) => {
         const [mx, my] = toScreen(m.x, m.y);

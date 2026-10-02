@@ -13,6 +13,7 @@ import {appMowers, saveAppMowers} from '@/lib/mowers';
 import {isApp} from '@/lib/native';
 import {setSwipeEnabled, useSwipeEnabled} from '@/lib/swipe';
 import {UpdateSettings} from '@/components/Updates';
+import {MowerBodySettings} from '@/components/MowerBodySettings';
 
 function IconChoice({
   icons,
@@ -344,6 +345,8 @@ export default function SettingsPage() {
           <SizeSlider value={icons.mowerSize ?? 1} onChange={(v) => setIcon('mowerSize', v)} />
           <IconPreview icons={icons} />
         </section>
+
+        <MowerBodySettings styles={styles} />
 
         <section className={styles.card}>
           <h2>{tr('Docking station icon')}</h2>

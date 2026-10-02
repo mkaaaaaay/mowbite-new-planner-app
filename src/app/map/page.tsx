@@ -36,6 +36,8 @@ import {useMowPlan} from './useMowPlan';
 import {useMapEdits} from './useMapEdits';
 import {checkMap} from '@/lib/mapCheck';
 import Problems from './Problems';
+import {BodyCheck} from './BodyCheck';
+import {useMowerBody, type BodySpot} from '@/lib/mowerBody';
 
 // useSearchParams needs a suspense boundary in a static export
 export default function MapPage() {
@@ -161,7 +163,10 @@ function MapEditor() {
 
   // not while a point is dragged, a new plan redrawn mid-drag makes it stutter
   const [draggingPoint, setDraggingPoint] = useState(false);
-  const {toolWidth, angleOffset, offsetIsAbsolute, angleIncrement, shownArea, autoAngle, touchAngle, mismatch, realPlan, plan, stripes, planLength} =
+  // the mower's body as the planner knows it, and where it would stick out in the selected area's plan
+  const body = useMowerBody();
+  const [bodySpots, setBodySpots] = useState<BodySpot[] | null>(null);
+  const {toolWidth, angleOffset, offsetIsAbsolute, angleIncrement, shownArea, autoAngle, touchAngle, mismatch, realPlan, plan, stripes, planLength, planRequest} =
     useMowPlan({params, liveMap, shownMap, selectedAreaId, pastJobs, areaProps, showStripes, previewCorrection, draggingPoint});
 
   const globalValue = (key: string) => {
@@ -532,6 +537,7 @@ function MapEditor() {
                 loops={plan?.loops}
                 preview={splitPreview ?? (merged ? [merged.outline] : undefined)}
                 markers={spot || problemSpots.length ? [...(spot ? [spot] : []), ...problemSpots] : undefined}
+                bodySpots={bodySpots ?? undefined}
                 focus={spot ?? undefined}
               />
             )}
@@ -703,6 +709,9 @@ function MapEditor() {
                   onPreviewCorrection={setPreviewCorrection}
                   angle={{offset: angleOffset, offsetIsAbsolute, increment: angleIncrement}}
                 />
+              )}
+              {selectedArea && mode === 'idle' && simplifyCm === null && selectedArea.properties.type === 'mow' && body && realPlan && (
+                <BodyCheck request={planRequest} onSpots={setBodySpots} />
               )}
 
               {selectedArea && simplified && simplifyCm !== null && (

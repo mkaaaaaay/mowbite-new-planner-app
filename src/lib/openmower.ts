@@ -32,6 +32,12 @@ export const RPC = {
   areaProperties: 'map.area_properties',
   // the last warnings and errors ROS logged, kept in memory by the mower. OpenMower doesn't offer it yet
   logs: 'logs.recent',
+  // the MowBite Planner's settings (with OM_PLANNER=mowbite only): every setting with value, default and range,
+  // and changing them (null: back to the default)
+  plannerSettings: 'planner.settings',
+  plannerSettingsSet: 'planner.settings.set',
+  // a plan straight from the MowBite Planner, with report: true where the mower's body would stick out
+  plannerPlan: 'planner.plan',
 } as const;
 
 export const ACTION = {
