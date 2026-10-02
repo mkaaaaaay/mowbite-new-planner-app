@@ -35,9 +35,7 @@ const mapVersion = (map: object | null) => {
 };
 
 // planner: asked of the MowBite Planner (planner.plan), which says what it planned with
-// what a planner mode sets over the settings (like the planner's modes): the pattern and the narrow parts
-const MODE_PATTERN: Record<string, string> = {gentle: 'auto', lines: 'lanes', crosshatch: 'crosshatch', rings: 'concentric'};
-const MODE_NARROW: Record<string, string> = {gentle: 'loops', lines: 'lanes', crosshatch: 'lanes', rings: 'loops'};
+// auto: what the planner took last time for the area, lanes until it planned it once
 const autoPattern = (pattern: string, picked: string | undefined) => (pattern === 'auto' ? (picked ?? 'lanes') : pattern);
 
 type PlanJob = {areaId: string | null; key: string; cacheKey: string; angleKey: string; planner: boolean};
@@ -281,14 +279,9 @@ export function useMowPlan({
   const global = (key: string) => numParam(params, PARAM.mowerLogic(key));
   // with the MowBite Planner on the mower: worked out like it does, with its settings (the area's own on top), in a
   // worker so the map stays smooth
-  // the area's planner mode, else the one for all areas. slic3r: OpenMower's old planner plans, worked out like it does
-  const mode = (() => {
-    const v = plannerValue(shownArea, 'mode');
-    return typeof v === 'string' && v ? v : 'custom';
-  })();
   const estimateInput = useMemo((): PlannerEstimateInput | null => {
     const ps = planner?.settings;
-    if (!ps || !wantPlan || !shownMap || !shownArea || !toolWidth || mode === 'slic3r') return null;
+    if (!ps || !wantPlan || !shownMap || !shownArea || !toolWidth) return null;
     const holes = obstaclesFor(shownArea, shownMap);
     const p = shownArea.properties;
     const own = p.planner ?? {};
@@ -357,10 +350,10 @@ export function useMowPlan({
       angleMax: typeof value('angle_max') === 'number' ? (value('angle_max') as number) : p.angle_max,
       angleStep: num('angle_step', (5 * Math.PI) / 180),
       // auto: what the planner took last time for this area, lanes until it planned it once
-      fillPattern: autoPattern(MODE_PATTERN[mode] ?? str('fill_pattern', 'lanes'), picked?.fill_pattern),
+      fillPattern: autoPattern(str('fill_pattern', 'lanes'), picked?.fill_pattern),
       crosshatchAngle: num('crosshatch_angle', Math.PI / 2),
       minLaneLength: num('min_lane_length', 0.1),
-      narrowParts: MODE_NARROW[mode] ?? str('narrow_parts', 'lanes'),
+      narrowParts: str('narrow_parts', 'lanes'),
       turnRadius: num('turn_radius', 0.25),
       laneOrder: str('lane_order', 'skip'),
       bladeAhead: num('blade_ahead', 0),
@@ -404,7 +397,7 @@ export function useMowPlan({
   const plan = useMemo((): MowPlan | undefined => {
     if (realPlan) return realPlan;
     if (!wantPlan || !shownMap || !shownArea || !toolWidth) return undefined;
-    if (planner?.settings && mode !== 'slic3r') {
+    if (planner?.settings) {
       // the newest estimate for this area, an older one (the angle or a point before) until that's there
       const e = estimated?.input.id === shownArea.id ? estimated.estimate : null;
       return e ? {...e, lanes: true} : undefined;

@@ -18,7 +18,6 @@ describe('planner fields', () => {
 
   it('offers the main settings per area too', () => {
     expect(Object.keys(FIELDS).filter((k) => FIELDS[k].area)).toEqual([
-      'mode',
       'lane_spacing_mode',
       'fill_pattern',
       'narrow_parts',
@@ -28,16 +27,5 @@ describe('planner fields', () => {
       'route_order',
       'bend_max_gap',
     ]);
-  });
-
-  it('a mode sets the pattern, loops instead of turning and narrow parts, slic3r all of them', async () => {
-    const {modeNote} = await import('@/components/PlannerSettings');
-    expect(modeNote('custom', 'fill_pattern')).toBeNull();
-    expect(modeNote('gentle', 'fill_pattern')).toContain('Gentle on the lawn');
-    expect(modeNote('lines', 'turn_radius')).toBeNull();
-    expect(modeNote('slic3r', 'turn_radius')).toContain('old planner');
-    expect(modeNote('gentle', 'mode')).toBeNull();
-    // a mode this app doesn't know (a newer planner's) doesn't grey anything out
-    expect(modeNote('zigzag', 'fill_pattern')).toBeNull();
   });
 });

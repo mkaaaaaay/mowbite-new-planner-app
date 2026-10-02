@@ -2,7 +2,7 @@
 // this adds a name, what it does, a group and how a value is typed in). Settings the planner has but this doesn't
 // know show up with their own name under "More", so a newer planner's settings can be set too.
 
-export type Group = 'mode' | 'spacing' | 'pattern' | 'angle' | 'loops' | 'turns' | 'route' | 'fine';
+export type Group = 'spacing' | 'pattern' | 'angle' | 'loops' | 'turns' | 'route' | 'fine';
 
 export interface Field {
   label: string;
@@ -20,7 +20,6 @@ export interface Field {
 }
 
 export const GROUPS: {key: Group; label: string}[] = [
-  {key: 'mode', label: 'Mode'},
   {key: 'spacing', label: 'Lane spacing'},
   {key: 'pattern', label: 'Pattern'},
   {key: 'angle', label: 'Mowing direction'},
@@ -31,13 +30,6 @@ export const GROUPS: {key: Group; label: string}[] = [
 ];
 
 export const FIELDS: Record<string, Field> = {
-  mode: {
-    label: 'Mode',
-    help: "Sets the pattern, loops instead of turning on the spot and narrow parts at once. Own settings: as set below. Gentle on the lawn: lanes or rings, whichever turns tightly less, loops instead of turning on the spot, loops in narrow parts. Lines, crosshatch, rings: just that pattern. Slic3r: OpenMower's old planner plans, the settings below don't count then.",
-    group: 'mode',
-    choices: {custom: 'Own settings', gentle: 'Gentle on the lawn', lines: 'Lines', crosshatch: 'Crosshatch', rings: 'Rings', slic3r: "Slic3r (OpenMower's old planner)"},
-    area: true,
-  },
   lane_spacing_mode: {
     label: 'Lane spacing',
     help: "Fixed: OpenMower's lane spacing (tool_width), or the overlap set here. Picked by the planner: the widest spacing between the two below that leaves nothing unmowed, fewer lanes and turns.",
@@ -228,8 +220,9 @@ export const FIELDS: Record<string, Field> = {
   min_lane_length: {label: 'Shortest lane', help: 'Shorter pieces of a lane are left out.', group: 'fine', unit: 'm', step: 0.01, advanced: true},
 };
 
-// what a mode other than custom sets, over the settings of their own
-export const MODE_SETS = ['fill_pattern', 'smooth_spins', 'narrow_parts'];
+// settings a planner may still report that the app leaves out: the planner of the next version drops them again (and
+// everything stored with them)
+export const DROPPED = ['mode'];
 
 // shown in their own card (Mower sizes)
 export const BODY_KEYS = [
