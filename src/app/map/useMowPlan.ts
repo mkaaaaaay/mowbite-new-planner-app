@@ -1,19 +1,40 @@
-import type {MowerMap, Point} from '@/hooks/useMowerMap';
+import type {MapArea, MowerMap, Point} from '@/hooks/useMowerMap';
 import {numParam, type MowerParams} from '@/hooks/useMowerParams';
 import type {PastJob} from '@/hooks/useMowHistory';
 import {mowerPlan, type PlanRequest} from '@/lib/areaPlan';
 import {angleChangedSince} from '@/lib/backups';
 import {measuredStripeAngle, stripeAngleDiff} from '@/lib/mowDirection';
-import {mowAroundHoles} from '@/lib/mowAround';
+import {mowAroundHoles, nestedAreas} from '@/lib/mowAround';
 import {linkStripes, mowPlan, type MowPlan} from '@/lib/mowPlan';
 import {usePlannerSettings} from '@/lib/mowerBody';
-import {plannerEstimate} from '@/lib/plannerEstimate';
+import type {PlannerEstimateInput} from '@/lib/plannerEstimate';
+import {usePlannerEstimate} from '@/lib/usePlannerEstimate';
 import {angleInRange, autoMowAngle} from '@/lib/mowStripes';
 import {PARAM} from '@/lib/openmower';
 import {length} from '@/lib/planProgress';
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {DEG} from './editing';
 import type {AngleMismatch} from './MowSettings';
+
+// plans the mower worked out, by what was asked and what else they depend on: an area picked again, an angle tried
+// before or an area worked out ahead (see prefetching below) is there at once
+const PLANS = new Map<string, MowPlan | null>();
+const KEEP_PLANS = 40;
+function remember(key: string, plan: MowPlan | null) {
+  PLANS.delete(key);
+  PLANS.set(key, plan);
+  if (PLANS.size > KEEP_PLANS) PLANS.delete(PLANS.keys().next().value!);
+}
+// the saved map's version: the planner reads where an area lies from it
+const mapVersions = new WeakMap<object, number>();
+let mapCount = 0;
+const mapVersion = (map: object | null) => {
+  if (!map) return 0;
+  if (!mapVersions.has(map)) mapVersions.set(map, ++mapCount);
+  return mapVersions.get(map)!;
+};
+
+type PlanJob = {areaId: string | null; key: string; cacheKey: string; angleKey: string};
 
 // The mowing plan shown for the selected area: the mower's own when it offers one (mowing.plan, also for unsaved
 // changes), otherwise worked out here like its planner does. Plus the angle it really mows at and whether the last
@@ -44,6 +65,11 @@ export function useMowPlan({
   const toolWidth = numParam(params, PARAM.toolWidth);
   // the MowBite Planner's settings, when the mower has it: the estimate then follows its rules
   const planner = usePlannerSettings();
+  // a planner setting for the area: its own (planner property), else the one for all areas
+  const plannerValue = (area: MapArea | null, key: string): unknown => {
+    const own = area?.properties.planner ?? {};
+    return key in own ? own[key] : planner?.settings[key]?.value;
+  };
   const angleOffset = numParam(params, PARAM.mowAngleOffset) ?? 0;
   const offsetIsAbsolute = params[PARAM.mowAngleOffsetIsAbsolute] === true;
   const angleIncrement = numParam(params, PARAM.mowAngleIncrement) ?? 0;
@@ -124,137 +150,231 @@ export function useMowPlan({
   const effectiveAngle = shownArea ? plannedAngle(shownArea) + (mismatch ? previewCorrection : 0) * DEG : 0;
 
   // the real plan from the mower when it offers one, for the area as it is in the editor right now (saved or not)
-  const planRequest = useMemo((): PlanRequest | null => {
-    if (!stripesOn || !planned || !shownArea || !shownMap) return null;
-    const p = shownArea.properties;
-    const req: PlanRequest = {
-      outline: shownArea.outline,
-      obstacles: [
-        ...shownMap.areas
-          .filter((a) => a.properties.type === 'obstacle' && a.properties.active !== false && a.outline.length > 2)
-          .map((a) => a.outline),
-        ...(areaProps.has('mow_around') ? mowAroundHoles(shownArea, shownMap.areas) : []),
-      ],
-    };
-    if (p.angle !== undefined) req.angle = p.angle;
-    if (p.outline_count !== undefined) req.outline_count = p.outline_count;
-    if (p.outline_overlap_count !== undefined) req.outline_overlap_count = p.outline_overlap_count;
-    if (p.outline_offset !== undefined) req.outline_offset = p.outline_offset;
+  const nestedOn = (area: MapArea | null) => plannerValue(area, 'nested_areas') === true;
+  // the obstacles the plan goes round: the map's, the don't mow areas with mow_around, the mowing areas lying in it
+  // with nested_areas (they get their own plan)
+  const obstaclesFor = (area: MapArea, map: MowerMap) => [
+    ...map.areas.filter((a) => a.properties.type === 'obstacle' && a.properties.active !== false && a.outline.length > 2).map((a) => a.outline),
+    ...(areaProps.has('mow_around') ? mowAroundHoles(area, map.areas) : []),
+    ...(nestedOn(area) ? nestedAreas(area, map.areas) : []),
+  ];
+  // the area as saved, obstacles and all: the planner knows where it lies then (the docking station it starts from,
+  // the lawns next to it, the areas to keep out of)
+  const unchanged = useMemo(() => {
+    if (!shownArea || !shownMap || !savedArea || !liveMap) return false;
+    return (
+      JSON.stringify(savedArea.outline) === JSON.stringify(shownArea.outline) &&
+      JSON.stringify(obstaclesFor(savedArea, liveMap)) === JSON.stringify(obstaclesFor(shownArea, shownMap))
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shownArea, shownMap, savedArea, liveMap, areaProps, planner]);
+  // what the mower is asked for an area: by its id to the MowBite Planner while it's as saved (with planner settings
+  // as edited, mowing.plan doesn't take those), else as it is in the editor
+  const requestFor = (area: MapArea, map: MowerMap, asSaved: boolean): PlanRequest => {
+    const p = area.properties;
+    const props: Omit<Extract<PlanRequest, {outline: Point[]}>, 'outline' | 'obstacles'> = {};
+    if (p.angle !== undefined) props.angle = p.angle;
+    if (p.outline_count !== undefined) props.outline_count = p.outline_count;
+    if (p.outline_overlap_count !== undefined) props.outline_overlap_count = p.outline_overlap_count;
+    if (p.outline_offset !== undefined) props.outline_offset = p.outline_offset;
     if (p.angle_min !== undefined && p.angle_max !== undefined) {
-      req.angle_min = p.angle_min;
-      req.angle_max = p.angle_max;
+      props.angle_min = p.angle_min;
+      props.angle_max = p.angle_max;
     }
-    if (p.planner && Object.keys(p.planner).length) req.settings = p.planner;
-    return req;
-  }, [stripesOn, planned, shownArea, shownMap, areaProps]);
+    if (p.planner && Object.keys(p.planner).length) {
+      props.settings = p.planner;
+      if (asSaved) return {area_id: area.id, ...props};
+    }
+    return {outline: area.outline, obstacles: obstaclesFor(area, map), ...props};
+  };
+  const planRequest = useMemo((): PlanRequest | null => {
+    // the planner's settings first (nested_areas changes the obstacles), not one plan before them and one after
+    if (!stripesOn || !planned || !shownArea || !shownMap || planner === undefined) return null;
+    return requestFor(shownArea, shownMap, unchanged);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stripesOn, planned, shownArea, shownMap, areaProps, planner, unchanged]);
+  // what else a plan depends on: the planner's settings, the mower's mowing settings, the saved map
+  const contextKey = useMemo(
+    () => JSON.stringify([planner ? Object.entries(planner.settings).map(([k, v]) => [k, v.value]) : null, params, mapVersion(liveMap)]),
+    [planner, params, liveMap],
+  );
   const planKey = planRequest ? JSON.stringify(planRequest) : '';
   // the angle a plan is for: the mower's answer for another one has the stripes the wrong way
-  const angleKey =
-    planRequest && 'outline' in planRequest
-      ? JSON.stringify([
-          planRequest.angle,
-          planRequest.angle_min,
-          planRequest.angle_max,
-          ...['angle', 'angle_strategy', 'angle_offset', 'angle_min', 'angle_max'].map((k) => planRequest.settings?.[k]),
-        ])
-      : '';
-  const [fromMower, setFromMower] = useState<{areaId: string | null; key: string; angleKey: string; plan: MowPlan | null} | null>(
-    null,
-  );
-  // one plan at a time: planning takes the mower a second or more (several with the body check), the newest of the
-  // ones asked for meanwhile goes next, the ones in between are left out
+  const angleKey = planRequest
+    ? JSON.stringify([
+        planRequest.angle,
+        planRequest.angle_min,
+        planRequest.angle_max,
+        ...['angle', 'angle_strategy', 'angle_offset', 'angle_min', 'angle_max'].map((k) => planRequest.settings?.[k]),
+      ])
+    : '';
+  const cacheKey = planKey ? planKey + contextKey : '';
+  const [fromMower, setFromMower] = useState<(PlanJob & {plan: MowPlan | null}) | null>(null);
+  // one plan at a time: planning takes the mower a few seconds, the newest of the ones asked for meanwhile goes next,
+  // the ones in between are left out. Then the areas worked out ahead, one after the other
   const asking = useRef(false);
-  const next = useRef<{areaId: string | null; key: string; angleKey: string} | null>(null);
-  const ask = useCallback(function send(job: {areaId: string | null; key: string; angleKey: string}) {
+  const next = useRef<PlanJob | null>(null);
+  const ahead = useRef<PlanJob[]>([]);
+  const send = useCallback(function send(job: PlanJob, background: boolean) {
+    if (PLANS.has(job.cacheKey)) {
+      if (!background) setFromMower({...job, plan: PLANS.get(job.cacheKey)!});
+      return;
+    }
     if (asking.current) {
-      next.current = job;
+      if (!background) next.current = job;
+      else if (!ahead.current.some((j) => j.cacheKey === job.cacheKey)) ahead.current.push(job);
       return;
     }
     asking.current = true;
     void mowerPlan(JSON.parse(job.key))
       .then(
-        (plan) => setFromMower({...job, plan}),
-        () => setFromMower({...job, plan: null}),
+        (plan) => {
+          remember(job.cacheKey, plan);
+          if (!background) setFromMower({...job, plan});
+        },
+        () => !background && setFromMower({...job, plan: null}),
       )
       .finally(() => {
         asking.current = false;
         const queued = next.current;
         next.current = null;
-        if (queued && queued.key !== job.key) send(queued);
+        if (queued && queued.cacheKey !== job.cacheKey) send(queued, false);
+        else {
+          const later = ahead.current.shift();
+          if (later) send(later, true);
+        }
       });
   }, []);
-  // not while a point is dragged or the angle is moving: a new plan redrawn mid-drag makes it stutter, and every
-  // pause of the slider would queue up a plan on the mower
+  // not while a point is dragged or the angle is moving: every pause would queue up a plan on the mower
   useEffect(() => {
-    if (!planKey || draggingPoint || angleMoving) return;
-    // while points are typed or clicked only once it settles
-    const t = setTimeout(() => ask({areaId: selectedAreaId, key: planKey, angleKey}), 300);
+    if (!planKey || draggingPoint || angleMoving || PLANS.has(cacheKey)) return;
+    // while points are typed or clicked only once it settles, an area as saved at once
+    const t = setTimeout(() => send({areaId: selectedAreaId, key: planKey, cacheKey, angleKey}, false), unchanged ? 0 : 300);
     return () => clearTimeout(t);
-  }, [planKey, angleKey, selectedAreaId, draggingPoint, angleMoving, ask]);
-  // while the angle is moving the estimate follows right away, and it stays until the mower's plan for that angle is
-  // there. Other changes (a point moved) keep the last answer for this area up while a newer one is on its way, so it
-  // doesn't flicker back to the estimate
-  const answered = fromMower?.areaId === selectedAreaId ? fromMower : null;
-  const realPlan =
-    planKey && !angleMoving && answered && (answered.key === planKey || answered.angleKey === angleKey) ? answered.plan : null;
+  }, [planKey, cacheKey, angleKey, selectedAreaId, draggingPoint, angleMoving, unchanged, send]);
+  // the saved mowing areas worked out ahead while the map is open, so picking one shows its plan at once
+  useEffect(() => {
+    if (!showStripes || !liveMap || planner === undefined) return;
+    for (const area of liveMap.areas) {
+      const p = area.properties;
+      if (p.type !== 'mow' || p.active === false || p.mowable === false || area.outline.length < 3) continue;
+      const key = JSON.stringify(requestFor(area, liveMap, true));
+      send({areaId: area.id, key, cacheKey: key + contextKey, angleKey: ''}, true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showStripes, liveMap, planner, contextKey, send]);
+  // the mower's plan for exactly this, or the estimate (worked out like its planner does) until it's there
+  const answered = fromMower?.areaId === selectedAreaId && fromMower.cacheKey === cacheKey ? fromMower : null;
+  const realPlan = (cacheKey ? PLANS.get(cacheKey) : undefined) ?? answered?.plan ?? null;
   // the mower's own plan has the angle it really mows at, a leftover increment included, nothing to warn about then
   if (realPlan) mismatch = null;
 
   // otherwise where the mower will drive, worked out like its planner does (lib/mowPlan)
   const wantPlan = !!(shownMap && shownArea && planned && stripesOn && toolWidth);
+  const global = (key: string) => numParam(params, PARAM.mowerLogic(key));
+  // with the MowBite Planner on the mower: worked out like it does, with its settings (the area's own on top), in a
+  // worker so the map stays smooth
+  const estimateInput = useMemo((): PlannerEstimateInput | null => {
+    const ps = planner?.settings;
+    if (!ps || !wantPlan || !shownMap || !shownArea || !toolWidth) return null;
+    const holes = obstaclesFor(shownArea, shownMap);
+    const p = shownArea.properties;
+    const own = p.planner ?? {};
+    const value = (key: string) => plannerValue(shownArea, key);
+    const num = (key: string, fallback: number) => {
+      const v = value(key);
+      return typeof v === 'number' && Number.isFinite(v) ? v : fallback;
+    };
+    const str = (key: string, fallback: string) => {
+      const v = value(key);
+      return typeof v === 'string' ? v : fallback;
+    };
+    // mower_logic sends these with every plan, only the area's own planner settings go over them
+    const sent = (key: string, fallback: number) => (typeof own[key] === 'number' ? (own[key] as number) : fallback);
+    // the planner picks the direction itself with an angle or a strategy in the area's planner settings, or in the
+    // ones for all areas when the area has no angle of its own
+    const ownAngle = typeof own.angle === 'number' ? own.angle : null;
+    const byPlanner = ownAngle !== null || typeof own.angle_strategy === 'string' || (!!planner.own_angle && p.angle === undefined);
+    const globalAngle = typeof ps.angle?.value === 'number' ? (ps.angle.value as number) : null;
+    const offset = sent('perimeter_offset', p.outline_offset ?? global('outline_offset') ?? 0);
+    const width = num('robot_width', 0);
+    const front = num('robot_front', 0);
+    const rear = num('robot_rear', 0);
+    // where the area lies, while it's as saved (the planner reads that from the saved map): the docking station
+    // the plan starts and ends at, the other lawns the body may reach into, the areas nothing goes over
+    const others = unchanged && liveMap ? liveMap.areas.filter((a) => a.id !== shownArea.id && a.outline.length > 2) : [];
+    const dock = unchanged ? liveMap?.docking_stations[0] : undefined;
+    // mower_logic sends the outline and the obstacles as float32
+    const f32 = (o: Point[]) => o.map((q) => ({x: Math.fround(q.x), y: Math.fround(q.y)}));
+    return {
+      id: shownArea.id,
+      outline: f32(shownArea.outline),
+      holes: holes.map(f32),
+      spacing: toolWidth,
+      bladeWidth: num('mower_width', toolWidth),
+      // a wall at the line: the body keeps its half width off it
+      perimeterOffset:
+        str('edges', 'recorded') === 'hard' && width > 0 ? Math.max(offset, width / 2 - Math.abs(num('blade_offset', 0))) : offset,
+      passes: sent('perimeter_passes', p.outline_count ?? global('outline_count') ?? 0),
+      overlapPasses: sent('lane_overlap_passes', p.outline_overlap_count ?? global('outline_overlap_count') ?? 0),
+      angle: byPlanner ? (ownAngle ?? (typeof own.angle_strategy === 'string' ? null : globalAngle)) : effectiveAngle,
+      strategy: str('angle_strategy', 'longest_edge'),
+      angleOffset: num('angle_offset', 0),
+      angleMin: typeof value('angle_min') === 'number' ? (value('angle_min') as number) : p.angle_min,
+      angleMax: typeof value('angle_max') === 'number' ? (value('angle_max') as number) : p.angle_max,
+      angleStep: num('angle_step', (5 * Math.PI) / 180),
+      fillPattern: str('fill_pattern', 'lanes'),
+      crosshatchAngle: num('crosshatch_angle', Math.PI / 2),
+      minLaneLength: num('min_lane_length', 0.1),
+      narrowParts: str('narrow_parts', 'lanes'),
+      turnRadius: num('turn_radius', 0.25),
+      laneOrder: str('lane_order', 'skip'),
+      bladeAhead: num('blade_ahead', 0),
+      bladeOffset: num('blade_offset', 0),
+      waypointSpacing: num('waypoint_spacing', 0.1),
+      perimeterOrder: str('perimeter_order', 'first'),
+      perimeterDirection: str('perimeter_direction', 'auto'),
+      cornerRadius: num('perimeter_corner_radius', 0.15),
+      simplifyTolerance: num('simplify_tolerance', 0.01),
+      turnTypes: Array.isArray(value('turn_types')) ? (value('turn_types') as string[]) : undefined,
+      allowReverse: value('allow_reverse') === true,
+      body:
+        width > 0 && front + rear > 0
+          ? {
+              width,
+              front,
+              rear,
+              recorded: str('edges', 'recorded') !== 'hard',
+              tolerance: num('body_tolerance', 0.05),
+              drivable: others
+                .filter((a) => a.properties.type === 'mow' && a.properties.active !== false && a.properties.mowable !== false)
+                .map((a) => a.outline),
+              keepOut: others
+                .filter((a) =>
+                  a.properties.active === false
+                    ? a.properties.type === 'mow' || a.properties.type === 'nav'
+                    : a.properties.type === 'mow' && a.properties.mowable === false && a.properties.mow_around !== true,
+                )
+                .map((a) => a.outline),
+            }
+          : undefined,
+      start: dock ? {x: dock.position.x, y: dock.position.y, heading: dock.heading} : undefined,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wantPlan, shownMap, shownArea, toolWidth, params, effectiveAngle, areaProps, planner, unchanged, liveMap]);
+  // (also while the mower's plan is shown: the estimate is there at once when something changes)
+  const estimated = usePlannerEstimate(estimateInput);
+
   const plan = useMemo((): MowPlan | undefined => {
     if (realPlan) return realPlan;
     if (!wantPlan || !shownMap || !shownArea || !toolWidth) return undefined;
-    const holes = [
-      ...shownMap.areas
-        .filter((a) => a.properties.type === 'obstacle' && a.properties.active !== false && a.outline.length > 2)
-        .map((a) => a.outline),
-      ...(areaProps.has('mow_around') ? mowAroundHoles(shownArea, shownMap.areas) : []),
-    ];
-    const p = shownArea.properties;
-    const global = (key: string) => numParam(params, PARAM.mowerLogic(key));
-    // with the MowBite Planner on the mower: worked out like it does, with its settings (the area's own on top)
-    const ps = planner?.settings;
-    if (ps) {
-      const own = p.planner ?? {};
-      const value = (key: string) => (key in own ? own[key] : ps[key]?.value);
-      const num = (key: string, fallback: number) => {
-        const v = value(key);
-        return typeof v === 'number' && Number.isFinite(v) ? v : fallback;
-      };
-      const str = (key: string, fallback: string) => {
-        const v = value(key);
-        return typeof v === 'string' ? v : fallback;
-      };
-      // the planner picks the direction itself with an angle or a strategy in the area's planner settings, or in the
-      // ones for all areas when the area has no angle of its own
-      const ownAngle = typeof own.angle === 'number' ? own.angle : null;
-      const byPlanner = ownAngle !== null || typeof own.angle_strategy === 'string' || (!!planner.own_angle && p.angle === undefined);
-      const globalAngle = typeof ps.angle?.value === 'number' ? (ps.angle.value as number) : null;
-      const offset = num('perimeter_offset', p.outline_offset ?? global('outline_offset') ?? 0);
-      const width = num('robot_width', 0);
-      const estimate = plannerEstimate({
-        outline: shownArea.outline,
-        holes,
-        spacing: toolWidth,
-        bladeWidth: num('mower_width', toolWidth),
-        // a wall at the line: the body keeps its half width off it
-        perimeterOffset:
-          str('edges', 'recorded') === 'hard' && width > 0 ? Math.max(offset, width / 2 - Math.abs(num('blade_offset', 0))) : offset,
-        passes: num('perimeter_passes', p.outline_count ?? global('outline_count') ?? 0),
-        overlapPasses: num('lane_overlap_passes', p.outline_overlap_count ?? global('outline_overlap_count') ?? 0),
-        angle: byPlanner ? (ownAngle ?? (typeof own.angle_strategy === 'string' ? null : globalAngle)) : effectiveAngle,
-        strategy: str('angle_strategy', 'longest_edge'),
-        angleOffset: num('angle_offset', 0),
-        angleMin: typeof value('angle_min') === 'number' ? (value('angle_min') as number) : p.angle_min,
-        angleMax: typeof value('angle_max') === 'number' ? (value('angle_max') as number) : p.angle_max,
-        angleStep: num('angle_step', (5 * Math.PI) / 180),
-        fillPattern: str('fill_pattern', 'lanes'),
-        crosshatchAngle: num('crosshatch_angle', Math.PI / 2),
-        minLaneLength: num('min_lane_length', 0.1),
-      });
-      if (estimate) return {...estimate, lanes: true};
+    if (planner?.settings) {
+      // the newest estimate for this area, an older one (the angle or a point before) until that's there
+      const e = estimated?.input.id === shownArea.id ? estimated.estimate : null;
+      return e ? {...e, lanes: true} : undefined;
     }
+    const holes = obstaclesFor(shownArea, shownMap);
+    const p = shownArea.properties;
     return mowPlan({
       outline: shownArea.outline,
       holes,
@@ -264,7 +384,8 @@ export function useMowPlan({
       toolWidth,
       angle: effectiveAngle,
     });
-  }, [realPlan, wantPlan, shownMap, shownArea, toolWidth, params, effectiveAngle, areaProps, planner]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [realPlan, wantPlan, shownMap, shownArea, toolWidth, params, effectiveAngle, areaProps, planner, estimated]);
 
   // the mower's own plan comes already joined up, the estimate gets its zigzags here
   const stripes = useMemo(
@@ -274,11 +395,12 @@ export function useMowPlan({
     [plan, realPlan, toolWidth, effectiveAngle],
   );
 
-  // how long the plan is to drive, closed passes included, the drives between the pieces not
+  // how long the plan is to drive, closed passes included, the drives between the pieces only where the estimate
+  // worked them out (the mower's own plan has them in its paths)
   const planLength = useMemo(() => {
     if (!plan || !stripes) return 0;
     const closed = plan.open ? plan.loops : plan.loops.map((o) => (o.length > 1 ? [...o, o[0]] : o));
-    return [...closed, ...stripes].reduce((s, o) => s + length(o), 0);
+    return [...closed, ...stripes].reduce((s, o) => s + length(o), 0) + (plan.between ?? 0);
   }, [plan, stripes]);
 
 

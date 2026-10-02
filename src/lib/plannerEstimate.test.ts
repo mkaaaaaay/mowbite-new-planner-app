@@ -74,4 +74,62 @@ describe('estimate like the MowBite Planner', () => {
     const rows = scanLanes([rect(0, 0, 0.05, 1)], 0, 0.14, 0.1);
     expect(rows.flat()).toHaveLength(0);
   });
+
+  it('narrow parts: the passes go on in there, the lanes only where a U-turn fits', () => {
+    // a lawn with a 0.8 m path off it
+    const outline = [
+      {x: 0, y: 0},
+      {x: 6, y: 0},
+      {x: 6, y: 4},
+      {x: 3.4, y: 4},
+      {x: 3.4, y: 9},
+      {x: 2.6, y: 9},
+      {x: 2.6, y: 4},
+      {x: 0, y: 4},
+    ];
+    const lanes = plannerEstimate({...base, outline, narrowParts: 'lanes', turnRadius: 0.25, laneOrder: 'skip'})!;
+    const loops = plannerEstimate({...base, outline, narrowParts: 'loops', turnRadius: 0.25, laneOrder: 'skip'})!;
+    const inPath = (plan: typeof lanes) => plan.stripes.filter(([a, b]) => a.y > 4.5 && b.y > 4.5).length;
+    expect(inPath(lanes)).toBeGreaterThan(0);
+    expect(inPath(loops)).toBe(0);
+    expect(loops.loops.length).toBeGreaterThan(lanes.loops.length);
+  });
+
+  it('the body: lane ends come back until it fits, the blade ahead moves the lanes back', () => {
+    // no passes the lanes don't reach under: the lanes go right to the edge
+    const opts = {...base, passes: 1, overlapPasses: 1, turnRadius: 0.25, laneOrder: 'skip', bladeAhead: 0.17, start: {x: 0, y: 3, heading: 0}};
+    const plain = plannerEstimate(opts)!;
+    // walls: nothing of the body past the outline (and the tolerance)
+    const body = plannerEstimate({...opts, body: {width: 0.4, front: 0.43, rear: 0.14, recorded: false, drivable: [], keepOut: [], tolerance: 0.05}})!;
+    const sticksOut = (plan: typeof plain) =>
+      plan.stripes.some(([a, b]) => {
+        const yaw = Math.atan2(b.y - a.y, b.x - a.x);
+        return [a, b].some((p) =>
+          [
+            [0.43, 0.2],
+            [0.43, -0.2],
+            [-0.14, 0.2],
+            [-0.14, -0.2],
+          ].some(([dx, dy]) => {
+            const x = p.x + Math.cos(yaw) * dx - Math.sin(yaw) * dy;
+            const y = p.y + Math.sin(yaw) * dx + Math.cos(yaw) * dy;
+            return x < -0.05 - 1e-6 || x > 10.05 + 1e-6 || y < -0.05 - 1e-6 || y > 6.05 + 1e-6;
+          }),
+        );
+      });
+    expect(body.stripes.length).toBeGreaterThan(0);
+    expect(sticksOut(plain)).toBe(true);
+    expect(sticksOut(body)).toBe(false);
+    // the lanes alternate, each the other way than the one before
+    const dir = body.stripes.map(([a, b]) => Math.sign(b.x - a.x));
+    expect(dir.slice(1).every((d, i) => d === -dir[i])).toBe(true);
+  });
+
+  it('another angle moves the lanes, the passes stay', () => {
+    const a = plannerEstimate({...base, angle: 0.3})!;
+    const b = plannerEstimate({...base, angle: 0.6})!;
+    expect(b.loops).toBe(a.loops);
+    expect(b.stripes).not.toEqual(a.stripes);
+  });
 });
+

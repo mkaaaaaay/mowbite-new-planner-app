@@ -26,6 +26,8 @@ export interface MowPlan {
   open?: boolean;
   // the stripes are the lanes one by one (the MowBite Planner's estimate), not joined into zigzags here
   lanes?: boolean;
+  // m, what the mower drives besides the loops and the stripes (the estimate's turns and drives between the parts)
+  between?: number;
 }
 
 // clipper works in integers, this is 0.01 mm

@@ -41,20 +41,18 @@ export function readPlan(answer: {paths?: PlannerPath[]; angle?: number} | Plann
 
 // what mowing.plan takes: a saved area by id, or an area as it is right now in the editor (map.json format,
 // missing settings fall back to the mower's global ones)
-export type PlanRequest =
-  | {area_id: string}
-  | {
-      outline: Point[];
-      obstacles: Point[][];
-      angle?: number;
-      outline_count?: number;
-      outline_overlap_count?: number;
-      outline_offset?: number;
-      angle_min?: number;
-      angle_max?: number;
-      // the area's MowBite Planner settings as edited (its planner property)
-      settings?: Record<string, unknown>;
-    };
+// what's set on the area as it is in the editor, in place of the saved one
+interface PlanProps {
+  angle?: number;
+  outline_count?: number;
+  outline_overlap_count?: number;
+  outline_offset?: number;
+  angle_min?: number;
+  angle_max?: number;
+  // the area's MowBite Planner settings as edited (its planner property)
+  settings?: Record<string, unknown>;
+}
+export type PlanRequest = ({area_id: string} & PlanProps) | ({outline: Point[]; obstacles: Point[][]} & PlanProps);
 
 // null when this mower can't tell, then the editor works it out itself (lib/mowPlan). With planner settings for
 // the area the MowBite Planner plans it directly (planner.plan): mowing.plan only knows OpenMower's area settings,
