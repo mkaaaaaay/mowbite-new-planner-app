@@ -48,7 +48,7 @@ export const FIELDS: Record<string, Field> = {
   },
   fill_pattern: {
     label: 'Pattern',
-    help: 'Inside the outline passes: parallel lanes, lanes and then lanes across them, rings further and further in, or the planner decides: lanes or rings, whichever turns on the spot less and leaves less unmowed.',
+    help: 'Inside the outline passes: parallel lanes, lanes and then lanes across them, rings further and further in, or the planner decides: lanes or rings, whichever turns tightly less (tighter than the tightest curve, on the spot too) and leaves less unmowed.',
     group: 'pattern',
     choices: {lanes: 'Lanes', crosshatch: 'Crosshatch', concentric: 'Rings', auto: 'Planner decides'},
     area: true,

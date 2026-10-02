@@ -595,7 +595,7 @@ const de: Record<string, string> = {
   "Turns": "Wenden",
   "Order and drives": "Reihenfolge und Fahrten",
   "Fine tuning": "Feinheiten",
-  "Inside the outline passes: parallel lanes, lanes and then lanes across them, rings further and further in, or the planner decides: lanes or rings, whichever turns on the spot less and leaves less unmowed.": "Innerhalb der Randrunden: parallele Bahnen, Bahnen und danach quer dazu, Ringe immer weiter nach innen, oder der Planer entscheidet: Bahnen oder Ringe, je nachdem, was weniger auf der Stelle dreht und weniger ungemäht lässt.",
+  "Inside the outline passes: parallel lanes, lanes and then lanes across them, rings further and further in, or the planner decides: lanes or rings, whichever turns tightly less (tighter than the tightest curve, on the spot too) and leaves less unmowed.": "Innerhalb der Randrunden: parallele Bahnen, Bahnen und danach quer dazu, Ringe immer weiter nach innen, oder der Planer entscheidet: Bahnen oder Ringe, je nachdem, was weniger eng dreht (enger als der kleinste Bogenradius, auch auf der Stelle) und weniger ungemäht lässt.",
   "Planner decides": "Planer entscheidet",
   "rings": "Ringe",
   "Lanes": "Bahnen",
