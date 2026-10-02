@@ -1416,10 +1416,27 @@ export function autoPasses(input: PlannerEstimateInput, width: number): number {
 function prepareNow(input: PlannerEstimateInput): Prepared | null {
   const width = Math.max(input.bladeWidth, input.spacing);
   const half = width / 2;
-  const {paths: free, rings: freeRings} = freeSpace(input.outline, input.holes, half, input.simplifyTolerance ?? 0.01);
+  const found = freeSpace(input.outline, input.holes, half, input.simplifyTolerance ?? 0.01);
+  let free = found.paths;
+  let freeRings = found.rings;
   if (!free.length) return null;
   const first = input.perimeterOffset;
   const lateral = input.bladeOffset ?? 0;
+  // an area to keep out of is a wall, recorded edges or not: the first loop keeps the body off it (half its width, as
+  // with hard edges), what that leaves along it isn't mowed
+  const b = input.body;
+  const away = b && b.width > 0 && b.front + b.rear > 0 ? b.keepOut.filter((k) => k.length > 2).map((k) => ccw(toPath(k))) : [];
+  if (b && away.length) {
+    const wall = 0.5 * b.width - Math.abs(lateral) - first;
+    const walled = clip(free, wall > 0 ? grow(away, wall, ClipperLib.JoinType.jtRound) : away, ClipperLib.ClipType.ctDifference);
+    if (Math.abs(partArea(walled)) < Math.abs(partArea(free)) - 1e-9) {
+      free = partsOf(walled)
+        .filter((p) => partArea(p) >= half * half)
+        .flat();
+      freeRings = ringsOf(free);
+      if (!free.length) return null;
+    }
+  }
   const spacing = input.spacing;
   const concentric = input.fillPattern === 'concentric';
   const count = input.passes < 0 ? autoPasses(input, width) : Math.max(0, Math.round(input.passes));

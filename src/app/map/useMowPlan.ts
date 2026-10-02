@@ -37,7 +37,7 @@ const mapVersion = (map: object | null) => {
 // planner: asked of the MowBite Planner (planner.plan), which says what it planned with
 // what a planner mode sets over the settings (like the planner's modes): the pattern and the narrow parts
 const MODE_PATTERN: Record<string, string> = {gentle: 'auto', lines: 'lanes', crosshatch: 'crosshatch', rings: 'concentric'};
-const MODE_NARROW: Record<string, string> = {gentle: 'loops', lines: 'lanes', crosshatch: 'lanes', rings: 'lanes'};
+const MODE_NARROW: Record<string, string> = {gentle: 'loops', lines: 'lanes', crosshatch: 'lanes', rings: 'loops'};
 const autoPattern = (pattern: string, picked: string | undefined) => (pattern === 'auto' ? (picked ?? 'lanes') : pattern);
 
 type PlanJob = {areaId: string | null; key: string; cacheKey: string; angleKey: string; planner: boolean};
