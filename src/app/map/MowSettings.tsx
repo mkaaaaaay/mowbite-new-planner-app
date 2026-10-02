@@ -4,6 +4,7 @@ import {tr} from '@/lib/i18n';
 import {useState} from 'react';
 import {duration} from '@/lib/dates';
 import {savedRate} from '@/lib/planProgress';
+import type {PlanChosen} from '@/lib/mowPlan';
 import {DEG, normDeg, overrideError, type Area, type Override, type UpdateArea} from './editing';
 import styles from './page.module.css';
 import {PATHS} from '@/lib/openmower';
@@ -87,6 +88,7 @@ export default function MowSettings({
   planFromMower,
   planAngle,
   planLength,
+  planChosen,
 }: {
   area: Area;
   autoAngle: number;
@@ -108,6 +110,8 @@ export default function MowSettings({
   planAngle?: number;
   // m, the passes and stripes of the plan shown
   planLength: number;
+  // what the MowBite Planner plans the area with (the lane spacing it picked, the outline passes)
+  planChosen?: PlanChosen;
 }) {
   const supported = useAreaProperties();
   const rate = savedRate();
@@ -204,7 +208,13 @@ export default function MowSettings({
           <input type="checkbox" checked={showStripes} onChange={onToggleStripes} />
           <span>
             {tr('show mowing plan')}
-            {toolWidth ? ` (${tr('{n} cm apart', {n: Math.round(toolWidth * 100)})})` : ''}
+            {planChosen
+              ? ` (${tr('{n} cm apart', {n: Math.round(planChosen.lane_spacing * 1000) / 10})}${
+                  planChosen.mode === 'auto' ? `, ${tr('picked by the planner')}` : ''
+                }, ${tr('{n} outline passes', {n: planChosen.perimeter_passes})})`
+              : toolWidth
+                ? ` (${tr('{n} cm apart', {n: Math.round(toolWidth * 100)})})`
+                : ''}
             {' · '}
             {planFromMower ? tr('from the mower') : tr('estimate')}
             {planFromMower && planAngle !== undefined && `, ${Math.round((((planAngle * 180) / Math.PI) % 180 + 180) % 180)}°`}

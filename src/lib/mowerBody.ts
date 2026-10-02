@@ -27,8 +27,11 @@ export interface PlannerSetting {
   max?: number;
   choices?: string[];
   settable: boolean;
+  // where its value comes from while it isn't set for the planner (a mower_logic parameter)
   from?: string;
   nullable?: boolean;
+  // the value for "the planner works it out" (perimeter_passes -1)
+  auto_value?: number;
 }
 
 export interface PlannerSettings {

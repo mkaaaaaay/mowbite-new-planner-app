@@ -720,6 +720,7 @@ function MapEditor() {
                     mismatch={mismatch}
                     previewCorrection={previewCorrection}
                     planFromMower={!!realPlan}
+                    planChosen={plan?.chosen}
                     planAngle={realPlan?.angle}
                     planLength={shownArea?.properties.mowable === false || shownArea?.properties.active === false ? 0 : planLength}
                     onPreviewCorrection={setPreviewCorrection}

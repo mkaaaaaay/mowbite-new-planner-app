@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {longestEdgeAngle, minWidthAngle, plannerEstimate, scanLanes, type PlannerEstimateInput} from './plannerEstimate';
+import {autoPasses, longestEdgeAngle, minWidthAngle, plannerEstimate, scanLanes, type PlannerEstimateInput} from './plannerEstimate';
 
 const rect = (x0: number, y0: number, x1: number, y1: number) => [
   {x: x0, y: y0},
@@ -130,6 +130,17 @@ describe('estimate like the MowBite Planner', () => {
     const b = plannerEstimate({...base, angle: 0.6})!;
     expect(b.loops).toBe(a.loops);
     expect(b.stripes).not.toEqual(a.stripes);
+  });
+
+  it('outline passes -1: as many as the turns at the lane ends need, like the planner', () => {
+    const body = {width: 0.4, front: 0.43, rear: 0.14, recorded: true, drivable: [], keepOut: [], tolerance: 0.05};
+    // the planner's PlannerConfig.passes for these: hypot(0.25 + 0.2, 0.43) = 0.622, less 0.25 allowed: 0.372 from the
+    // edge, 0.17 ahead, less half the blade twice: (0.452 - 0.09) / 0.14 -> 3 + 1
+    const input = {...base, passes: -1, turnRadius: 0.25, bladeAhead: 0.17, body};
+    expect(autoPasses(input, 0.18)).toBe(4);
+    expect(plannerEstimate(input)!.chosen).toEqual({lane_spacing: 0.14, perimeter_passes: 4, mode: 'fixed'});
+    // without the body: the turn's radius
+    expect(autoPasses({...input, body: undefined}, 0.18)).toBe(3);
   });
 });
 

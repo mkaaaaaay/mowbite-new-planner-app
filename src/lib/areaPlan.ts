@@ -1,5 +1,5 @@
 import type {Point} from '@/hooks/useMowerMap';
-import type {MowPlan} from './mowPlan';
+import type {MowPlan, PlanChosen} from './mowPlan';
 import type {PlanPath} from './planProgress';
 import {RPC} from './openmower';
 import {callRpc, rpcMethods} from './rpc';
@@ -29,14 +29,15 @@ export function readPaths(answer: {paths?: PlannerPath[]} | PlannerPath[]): Plan
   });
 }
 
-export function readPlan(answer: {paths?: PlannerPath[]; angle?: number} | PlannerPath[]): MowPlan {
+export function readPlan(answer: {paths?: PlannerPath[]; angle?: number; stats?: {chosen?: PlanChosen}} | PlannerPath[]): MowPlan {
   const loops: Point[][] = [];
   const stripes: [Point, Point][] = [];
   for (const p of readPaths(answer)) {
     if (p.outline) loops.push(p.points);
     else for (let i = 1; i < p.points.length; i++) stripes.push([p.points[i - 1], p.points[i]]);
   }
-  return {loops, stripes, angle: Array.isArray(answer) ? undefined : answer.angle, open: true};
+  const chosen = Array.isArray(answer) ? undefined : answer.stats?.chosen;
+  return {loops, stripes, angle: Array.isArray(answer) ? undefined : answer.angle, open: true, ...(chosen ? {chosen} : {})};
 }
 
 // what mowing.plan takes: a saved area by id, or an area as it is right now in the editor (map.json format,
@@ -54,12 +55,13 @@ interface PlanProps {
 }
 export type PlanRequest = ({area_id: string} & PlanProps) | ({outline: Point[]; obstacles: Point[][]} & PlanProps);
 
-// null when this mower can't tell, then the editor works it out itself (lib/mowPlan). With planner settings for
-// the area the MowBite Planner plans it directly (planner.plan): mowing.plan only knows OpenMower's area settings,
-// and the planner reads an area's own ones from the saved map, not from what's being edited
-export async function mowerPlan(req: PlanRequest): Promise<MowPlan | null> {
+// null when this mower can't tell, then the editor works it out itself (lib/mowPlan). With the MowBite Planner on the
+// mower it plans the area directly (planner.plan, the same settings mower_logic's plans get): it takes the area's
+// planner settings as edited and says what it planned with (the lane spacing it picked). mowing.plan only knows
+// OpenMower's area settings
+export async function mowerPlan(req: PlanRequest, viaPlanner = false): Promise<MowPlan | null> {
   const known = await rpcMethods();
-  if ('settings' in req && req.settings && known?.has(RPC.plannerPlan)) {
+  if ((viaPlanner || req.settings) && known?.has(RPC.plannerPlan)) {
     return readPlan(await callRpc(RPC.plannerPlan, req, 30000));
   }
   if (!known?.has(RPC.areaPlan)) return null;

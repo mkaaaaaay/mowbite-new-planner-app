@@ -1,6 +1,6 @@
 'use client';
 
-import {PlannerField} from '@/components/PlannerSettings';
+import {PlannerDecides, PlannerField} from '@/components/PlannerSettings';
 import {tr} from '@/lib/i18n';
 import {usePlannerSettings} from '@/lib/mowerBody';
 import {FIELDS, fromInput, toInput} from '@/lib/plannerFields';
@@ -51,6 +51,20 @@ export function AreaPlanner({
       <p className={local.note}>
         {tr('Empty or "like all areas": the setting for all areas (Settings, Planner). Counts from the next plan.')}
       </p>
+      <PlannerDecides
+        settings={all}
+        styles={styles}
+        on={own.lane_spacing_mode === 'auto' && own.perimeter_passes === all.perimeter_passes?.auto_value}
+        onChange={(on) => {
+          const next = {...own};
+          if (on) Object.assign(next, {lane_spacing_mode: 'auto', perimeter_passes: all.perimeter_passes.auto_value});
+          else {
+            delete next.lane_spacing_mode;
+            delete next.perimeter_passes;
+          }
+          update({planner: Object.keys(next).length ? next : undefined}, true);
+        }}
+      />
       {keys.map((key) => {
         const setting = all[key];
         const value = own[key];

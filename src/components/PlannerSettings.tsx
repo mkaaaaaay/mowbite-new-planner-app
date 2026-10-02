@@ -22,7 +22,8 @@ function formFrom(settings: Record<string, PlannerSetting>): Record<string, Valu
     if (s.type === 'list') out[key] = Array.isArray(s.value) ? (s.value as string[]) : [];
     else if (s.type === 'string') out[key] = String(s.value ?? '');
     else if (s.type === 'boolean') out[key] = s.value ? 'true' : 'false';
-    else out[key] = toInput(FIELDS[key], s.value);
+    // (one from mower_logic shows as its placeholder, it's not set here)
+    else out[key] = s.from && !s.stored ? '' : toInput(FIELDS[key], s.value);
   }
   return out;
 }
@@ -117,16 +118,68 @@ export function PlannerField({
       </label>
     );
   }
+  // a number the planner can work out itself (perimeter_passes -1): a button for that next to it
+  const auto = setting.auto_value !== undefined ? String(setting.auto_value) : null;
+  const isAuto = auto !== null && value === auto;
+  const fromText =
+    setting.from && !setting.stored && toInput(field, setting.value) ? tr('OpenMower: {value}', {value: toInput(field, setting.value)}) : null;
+  const input = (
+    <input
+      inputMode="decimal"
+      value={isAuto ? '' : (value as string)}
+      step={field?.step}
+      placeholder={isAuto ? tr('automatic') : (placeholder ?? fromText ?? (toInput(field, setting.default) || tr('none')))}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  );
   return (
     <label className={styles.field}>
       {label}
-      <input
-        inputMode="decimal"
-        value={value as string}
-        step={field?.step}
-        placeholder={placeholder ?? (toInput(field, setting.default) || tr('none'))}
-        onChange={(e) => onChange(e.target.value)}
-      />
+      {auto === null ? (
+        input
+      ) : (
+        <span className={local.withAuto}>
+          {input}
+          <button
+            type="button"
+            className={isAuto ? local.autoOn : undefined}
+            onClick={(e) => {
+              e.preventDefault();
+              onChange(isAuto ? '' : auto);
+            }}
+          >
+            {tr('Auto')}
+          </button>
+        </span>
+      )}
+    </label>
+  );
+}
+
+// lane spacing and outline passes both worked out by the planner, as one switch
+export function PlannerDecides({
+  settings,
+  on,
+  onChange,
+  styles,
+}: {
+  settings: Record<string, PlannerSetting>;
+  on: boolean;
+  onChange: (on: boolean) => void;
+  styles: Styles;
+}) {
+  if (!settings.lane_spacing_mode?.settable || settings.perimeter_passes?.auto_value === undefined) return null;
+  return (
+    <label className={[styles.toggle ?? styles.check, styles.toggleLong].filter(Boolean).join(' ')}>
+      <input type="checkbox" checked={on} onChange={(e) => onChange(e.target.checked)} />
+      <span>
+        {tr('The planner decides')}
+        <InfoTip>
+          {tr(
+            'Lane spacing and outline passes worked out by the planner: the widest spacing that leaves nothing unmowed, and as many passes as the turns at the lane ends need. The map shows what it picked.',
+          )}
+        </InfoTip>
+      </span>
     </label>
   );
 }
@@ -225,6 +278,19 @@ export function PlannerSettings({styles}: {styles: Styles}) {
           "How the MowBite Planner on the mower plans every area. An area can set some of them for itself in its mowing settings. Lane spacing, outline passes and offset come from OpenMower's mowing settings.",
         )}
       </p>
+      <PlannerDecides
+        settings={all}
+        styles={styles}
+        on={shown.lane_spacing_mode === 'auto' && shown.perimeter_passes === String(all.perimeter_passes?.auto_value)}
+        onChange={(on) => {
+          setForm({
+            ...form,
+            lane_spacing_mode: on ? 'auto' : 'fixed',
+            perimeter_passes: on ? String(all.perimeter_passes.auto_value) : '',
+          });
+          setState({});
+        }}
+      />
       {settings.own_angle && (
         <p className={styles.error}>
           {tr("A direction is set here: it wins over the areas' mow angle, but for areas with an angle of their own.")}

@@ -19,7 +19,7 @@ export interface PlannerEstimateInput {
   spacing: number; // m, lane spacing (OpenMower's tool_width)
   bladeWidth: number; // m, mower_width
   perimeterOffset: number; // m, first pass inside the outline
-  passes: number; // outline passes
+  passes: number; // outline passes, -1: as many as the lanes' turns need (autoPasses)
   overlapPasses: number; // lanes reach this many passes further out
   // rad: the direction mower_logic asks for, null: worked out by strategy
   angle: number | null;
@@ -47,6 +47,7 @@ export interface PlannerEstimateInput {
   perimeterDirection?: string; // auto, ccw, cw
   cornerRadius?: number; // m, perimeter_corner_radius: a loop doesn't start right at a corner
   simplifyTolerance?: number; // m, the outline and obstacles are simplified this much first
+  spacingMode?: string; // fixed, auto (the spacing is the one the planner picked or will try first), for chosen
   turnTypes?: string[]; // the kinds of turns allowed (u_turn, bulb, k_turn, detour, pivot)
   allowReverse?: boolean; // k-turns, which back up
 }
@@ -1329,6 +1330,7 @@ interface Prepared {
   state: RouteState;
   between: number; // m, the drives between the loops
   loopsEnd: boolean;
+  passes: number;
   angles: Map<string, number>;
 }
 const PREPARED = new Map<string, Prepared | null>();
@@ -1352,6 +1354,25 @@ function prepare(input: PlannerEstimateInput): Prepared | null {
   return found;
 }
 
+// like the planner's PlannerConfig.passes for perimeter_passes -1: as many loops as mow the strip along the edges the
+// lanes don't get to. A lane ends where its turn (a quarter arc, the body round it) stays in what the edges allow, the
+// blade blade_ahead further in. width: the blade (mower_width)
+export function autoPasses(input: PlannerEstimateInput, width: number): number {
+  const half = width / 2;
+  const first = input.perimeterOffset;
+  const centre = first + Math.abs(input.bladeOffset ?? 0);
+  const r = input.turnRadius ?? 0.25;
+  const b = input.body;
+  let end: number;
+  if (b && b.width > 0 && b.front + b.rear > 0) {
+    const out = Math.hypot(r + b.width / 2, Math.max(b.front, b.rear));
+    const allowed = (b.recorded ? b.width / 2 : 0) + (b.tolerance ?? 0.05);
+    end = Math.max(centre, out - allowed);
+  } else end = centre + r;
+  const strip = end + Math.abs(input.bladeAhead ?? 0) - half;
+  return Math.max(1, Math.ceil((strip - half - first) / input.spacing - 1e-9) + 1);
+}
+
 function prepareNow(input: PlannerEstimateInput): Prepared | null {
   const width = Math.max(input.bladeWidth, input.spacing);
   const half = width / 2;
@@ -1361,7 +1382,7 @@ function prepareNow(input: PlannerEstimateInput): Prepared | null {
   const lateral = input.bladeOffset ?? 0;
   const spacing = input.spacing;
   const concentric = input.fillPattern === 'concentric';
-  const count = Math.max(0, Math.round(input.passes));
+  const count = input.passes < 0 ? autoPasses(input, width) : Math.max(0, Math.round(input.passes));
   // rings meet at the corners, at a right angle the blade only covers up to width / sqrt 2 there
   const loopSpacing = concentric ? Math.min(spacing, width / Math.SQRT2) : spacing;
   const r = input.turnRadius ?? 0.25;
@@ -1445,6 +1466,7 @@ function prepareNow(input: PlannerEstimateInput): Prepared | null {
     between: route.between,
     // the end point counts for what's mowed last: the lanes, unless the loops come after them
     loopsEnd: last && !ringed && perimeterLevels.length > 0,
+    passes: count,
     angles: new Map(),
   };
 }
@@ -1623,5 +1645,6 @@ export function plannerEstimate(input: PlannerEstimateInput): PlannerEstimate | 
   };
 
   passes.forEach(({a, cells: list}, i) => cells(list, a, !prep.loopsEnd && i === passes.length - 1));
-  return {loops: prep.loops, stripes, angle, between};
+  const chosen = {lane_spacing: spacing, perimeter_passes: prep.passes, mode: input.spacingMode ?? 'fixed'};
+  return {loops: prep.loops, stripes, angle, between, chosen};
 }

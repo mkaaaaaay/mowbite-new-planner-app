@@ -28,6 +28,14 @@ export interface MowPlan {
   lanes?: boolean;
   // m, what the mower drives besides the loops and the stripes (the estimate's turns and drives between the parts)
   between?: number;
+  // what the MowBite Planner planned with (lane_spacing_mode auto: what it picked)
+  chosen?: PlanChosen;
+}
+
+export interface PlanChosen {
+  lane_spacing: number; // m
+  perimeter_passes: number;
+  mode: string; // fixed, auto
 }
 
 // clipper works in integers, this is 0.01 mm

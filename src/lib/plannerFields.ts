@@ -2,7 +2,7 @@
 // this adds a name, what it does, a group and how a value is typed in). Settings the planner has but this doesn't
 // know show up with their own name under "More", so a newer planner's settings can be set too.
 
-export type Group = 'pattern' | 'angle' | 'loops' | 'turns' | 'route' | 'fine';
+export type Group = 'spacing' | 'pattern' | 'angle' | 'loops' | 'turns' | 'route' | 'fine';
 
 export interface Field {
   label: string;
@@ -20,6 +20,7 @@ export interface Field {
 }
 
 export const GROUPS: {key: Group; label: string}[] = [
+  {key: 'spacing', label: 'Lane spacing'},
   {key: 'pattern', label: 'Pattern'},
   {key: 'angle', label: 'Mowing direction'},
   {key: 'loops', label: 'Outline passes'},
@@ -29,6 +30,22 @@ export const GROUPS: {key: Group; label: string}[] = [
 ];
 
 export const FIELDS: Record<string, Field> = {
+  lane_spacing_mode: {
+    label: 'Lane spacing',
+    help: "Fixed: OpenMower's lane spacing (tool_width), or the overlap set here. Picked by the planner: the widest spacing between the two below that leaves nothing unmowed, fewer lanes and turns.",
+    group: 'spacing',
+    choices: {fixed: 'Fixed', auto: 'Picked by the planner'},
+    area: true,
+  },
+  lane_spacing_min: {label: 'Spacing from', help: 'The narrowest spacing the planner tries. Empty: half the blade.', group: 'spacing', unit: 'm', step: 0.01, advanced: true},
+  lane_spacing_max: {label: 'Spacing up to', help: 'The widest spacing the planner tries, it starts there. Empty: 85 % of the blade.', group: 'spacing', unit: 'm', step: 0.01, advanced: true},
+  overlap: {
+    label: 'Overlap',
+    help: "How much of the blade's width the lanes overlap (0.2 = 20 %), with a fixed spacing. Empty: from OpenMower's lane spacing (tool_width).",
+    group: 'spacing',
+    step: 0.05,
+    advanced: true,
+  },
   fill_pattern: {
     label: 'Pattern',
     help: 'Inside the outline passes: parallel lanes, lanes and then lanes across them, or rings further and further in.',
@@ -83,6 +100,27 @@ export const FIELDS: Record<string, Field> = {
   },
   angle_min: {label: 'Direction from', help: 'The direction of the lanes stays between these two, set both or neither.', group: 'angle', unit: 'deg', step: 1, advanced: true},
   angle_max: {label: 'Direction to', help: 'The direction of the lanes stays between these two, set both or neither.', group: 'angle', unit: 'deg', step: 1, advanced: true},
+  perimeter_passes: {
+    label: 'Number of outline passes',
+    help: "For all areas, an area's own outline passes still count. Automatic: as many as the lanes' turns leave unmowed along the edge. Empty: OpenMower's (outline_count).",
+    group: 'loops',
+    step: 1,
+  },
+  lane_overlap_passes: {
+    label: 'Overlapping passes',
+    help: "How many outline passes the lanes reach into. Empty: OpenMower's (outline_overlap_count).",
+    group: 'loops',
+    step: 1,
+    advanced: true,
+  },
+  perimeter_offset: {
+    label: 'Outline offset',
+    help: "How far inside the outline the first pass runs. Empty: OpenMower's (outline_offset).",
+    group: 'loops',
+    unit: 'm',
+    step: 0.05,
+    advanced: true,
+  },
   perimeter_order: {
     label: 'Outline passes',
     help: 'Before the lanes, or after them: last mows over the marks the turns leave at the edge.',
