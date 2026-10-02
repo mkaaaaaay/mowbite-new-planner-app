@@ -19,6 +19,7 @@ describe('planner fields', () => {
   it('offers the main settings per area too', () => {
     expect(Object.keys(FIELDS).filter((k) => FIELDS[k].area)).toEqual([
       'fill_pattern',
+      'narrow_parts',
       'angle_strategy',
       'perimeter_order',
       'turn_radius',

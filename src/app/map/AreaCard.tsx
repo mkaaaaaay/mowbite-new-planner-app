@@ -3,6 +3,8 @@ import InfoTip from '@/components/InfoTip';
 import {polygonArea} from '@/lib/geometry';
 import {fmt, tr} from '@/lib/i18n';
 import {useAreaProperties} from '@/lib/areaProps';
+import {nestedIn} from '@/lib/mowAround';
+import {usePlannerSettings} from '@/lib/mowerBody';
 import {AREA_TYPES, type Area, type UpdateArea} from './editing';
 import styles from './page.module.css';
 
@@ -44,10 +46,16 @@ export default function AreaCard({
   const skipped = inactive || type === 'nav' || area.properties.mowable === false;
   // a mower that knows mow_around also keeps the blade off over a don't mow area, nothing to warn about then
   const bladeOff = supported.has('mow_around') && type === 'mow' && !inactive && area.properties.mowable === false;
+  // the MowBite Planner leaves a mowing area lying in another out of that one (nested_areas), it gets its own plan
+  const planner = usePlannerSettings();
+  const ownPlan =
+    !!enclosing && (enclosing.properties.planner?.nested_areas ?? planner?.settings.nested_areas?.value) === true && nestedIn(area, enclosing);
   const nested =
     outer &&
     !bladeOff &&
-    (outerMows && skipped
+    (ownPlan
+      ? tr('Lies inside "{name}": left out of it and mowed on its own, with its own settings.', outer)
+      : outerMows && skipped
       ? tr('Lies inside "{name}", so it gets mowed and driven on anyway.', outer)
       : outerMows
         ? tr('Lies inside "{name}" and gets mowed with it as well.', outer)

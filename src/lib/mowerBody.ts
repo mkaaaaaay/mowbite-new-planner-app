@@ -38,7 +38,7 @@ export interface PlannerSettings {
 }
 
 // the settings the app shows as the mower's sizes, in this order
-export const BODY_SETTINGS = ['robot_width', 'robot_front', 'robot_rear', 'mower_width', 'blade_ahead', 'blade_offset'] as const;
+export const BODY_SETTINGS = ['robot_width', 'robot_front', 'robot_rear', 'mower_width', 'blade_ahead', 'blade_offset', 'body_tolerance'] as const;
 export type BodySetting = (typeof BODY_SETTINGS)[number];
 
 // undefined: not asked yet, null: no MowBite Planner on this mower

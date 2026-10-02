@@ -25,6 +25,7 @@ const LABELS: Record<BodySetting, string> = {
   mower_width: 'Blade diameter',
   blade_ahead: 'Blade ahead of the rear axle',
   blade_offset: 'Blade to the left of the middle',
+  body_tolerance: 'Leeway past the edges',
 };
 
 type Styles = Record<string, string>;
@@ -184,9 +185,13 @@ export function MowerBodySettings({styles}: {styles: Styles}) {
         <p className={styles.dim}>
           {form.edges === 'hard'
             ? tr('The lines are the edge itself (drawn on the map): nothing of the body goes beyond them.')
-            : tr(
-                'The lines are where the middle of the mower drove along the edge, like OpenMower records them: the body may stick out half its width beyond them, as it did then, never further.',
-              )}
+            : known.body_tolerance
+              ? tr(
+                  'The lines are where the middle of the mower drove along the edge, like OpenMower records them: the body may be where it was then (half its width either side, the front past corners and on the outside of bends), and the leeway more.',
+                )
+              : tr(
+                  'The lines are where the middle of the mower drove along the edge, like OpenMower records them: the body may stick out half its width beyond them, as it did then, never further.',
+                )}
         </p>
       )}
       {missing.length > 0 && settings && (

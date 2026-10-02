@@ -36,6 +36,13 @@ export const FIELDS: Record<string, Field> = {
     choices: {lanes: 'Lanes', crosshatch: 'Crosshatch', concentric: 'Rings'},
     area: true,
   },
+  narrow_parts: {
+    label: 'Narrow parts',
+    help: "Where the area is narrower than a U-turn (a path, a strip between beds): lanes anyway, or the outline passes go on further in until it's mowed.",
+    group: 'pattern',
+    choices: {lanes: 'Lanes anyway', loops: 'Passes further in'},
+    area: true,
+  },
   crosshatch_angle: {
     label: 'Crosshatch angle',
     help: 'Direction of the second lanes to the first.',
@@ -139,6 +146,11 @@ export const FIELDS: Record<string, Field> = {
     unit: 'm',
     step: 0.1,
   },
+  nested_areas: {
+    label: 'Areas inside areas',
+    help: 'A mowing area lying in another (90 % of it at least) is left out of the bigger one and mowed round, it gets a plan of its own with its own settings (another angle, not mowed). Off: the bigger one mows across it.',
+    group: 'route',
+  },
   transit_edge_distance: {
     label: 'Drives away from edges',
     help: "Drives between the parts keep this far from walls and beds where that doesn't cost much more. 0 = the shortest way.",
@@ -160,7 +172,7 @@ export const FIELDS: Record<string, Field> = {
 };
 
 // shown in their own card (Mower sizes)
-export const BODY_KEYS = ['robot_width', 'robot_front', 'robot_rear', 'mower_width', 'blade_ahead', 'blade_offset', 'edges'];
+export const BODY_KEYS = ['robot_width', 'robot_front', 'robot_rear', 'mower_width', 'blade_ahead', 'blade_offset', 'body_tolerance', 'edges'];
 
 const DEG = 180 / Math.PI;
 
