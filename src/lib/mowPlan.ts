@@ -22,6 +22,10 @@ export interface MowPlan {
   loops: Point[][]; // the outline passes, around the area and around obstacles
   stripes: [Point, Point][];
   angle?: number; // rad, only the mower's own plan says it
+  // the loops are paths as the mower drives them (its own plan: several passes joined into one), not rings to close
+  open?: boolean;
+  // the stripes are the lanes one by one (the MowBite Planner's estimate), not joined into zigzags here
+  lanes?: boolean;
 }
 
 // clipper works in integers, this is 0.01 mm

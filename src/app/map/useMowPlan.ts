@@ -6,6 +6,8 @@ import {angleChangedSince} from '@/lib/backups';
 import {measuredStripeAngle, stripeAngleDiff} from '@/lib/mowDirection';
 import {mowAroundHoles} from '@/lib/mowAround';
 import {linkStripes, mowPlan, type MowPlan} from '@/lib/mowPlan';
+import {usePlannerSettings} from '@/lib/mowerBody';
+import {plannerEstimate} from '@/lib/plannerEstimate';
 import {angleInRange, autoMowAngle} from '@/lib/mowStripes';
 import {PARAM} from '@/lib/openmower';
 import {length} from '@/lib/planProgress';
@@ -40,6 +42,8 @@ export function useMowPlan({
   draggingPoint: boolean;
 }) {
   const toolWidth = numParam(params, PARAM.toolWidth);
+  // the MowBite Planner's settings, when the mower has it: the estimate then follows its rules
+  const planner = usePlannerSettings();
   const angleOffset = numParam(params, PARAM.mowAngleOffset) ?? 0;
   const offsetIsAbsolute = params[PARAM.mowAngleOffsetIsAbsolute] === true;
   const angleIncrement = numParam(params, PARAM.mowAngleIncrement) ?? 0;
@@ -209,6 +213,48 @@ export function useMowPlan({
     ];
     const p = shownArea.properties;
     const global = (key: string) => numParam(params, PARAM.mowerLogic(key));
+    // with the MowBite Planner on the mower: worked out like it does, with its settings (the area's own on top)
+    const ps = planner?.settings;
+    if (ps) {
+      const own = p.planner ?? {};
+      const value = (key: string) => (key in own ? own[key] : ps[key]?.value);
+      const num = (key: string, fallback: number) => {
+        const v = value(key);
+        return typeof v === 'number' && Number.isFinite(v) ? v : fallback;
+      };
+      const str = (key: string, fallback: string) => {
+        const v = value(key);
+        return typeof v === 'string' ? v : fallback;
+      };
+      // the planner picks the direction itself with an angle or a strategy in the area's planner settings, or in the
+      // ones for all areas when the area has no angle of its own
+      const ownAngle = typeof own.angle === 'number' ? own.angle : null;
+      const byPlanner = ownAngle !== null || typeof own.angle_strategy === 'string' || (!!planner.own_angle && p.angle === undefined);
+      const globalAngle = typeof ps.angle?.value === 'number' ? (ps.angle.value as number) : null;
+      const offset = num('perimeter_offset', p.outline_offset ?? global('outline_offset') ?? 0);
+      const width = num('robot_width', 0);
+      const estimate = plannerEstimate({
+        outline: shownArea.outline,
+        holes,
+        spacing: toolWidth,
+        bladeWidth: num('mower_width', toolWidth),
+        // a wall at the line: the body keeps its half width off it
+        perimeterOffset:
+          str('edges', 'recorded') === 'hard' && width > 0 ? Math.max(offset, width / 2 - Math.abs(num('blade_offset', 0))) : offset,
+        passes: num('perimeter_passes', p.outline_count ?? global('outline_count') ?? 0),
+        overlapPasses: num('lane_overlap_passes', p.outline_overlap_count ?? global('outline_overlap_count') ?? 0),
+        angle: byPlanner ? (ownAngle ?? (typeof own.angle_strategy === 'string' ? null : globalAngle)) : effectiveAngle,
+        strategy: str('angle_strategy', 'longest_edge'),
+        angleOffset: num('angle_offset', 0),
+        angleMin: typeof value('angle_min') === 'number' ? (value('angle_min') as number) : p.angle_min,
+        angleMax: typeof value('angle_max') === 'number' ? (value('angle_max') as number) : p.angle_max,
+        angleStep: num('angle_step', (5 * Math.PI) / 180),
+        fillPattern: str('fill_pattern', 'lanes'),
+        crosshatchAngle: num('crosshatch_angle', Math.PI / 2),
+        minLaneLength: num('min_lane_length', 0.1),
+      });
+      if (estimate) return {...estimate, lanes: true};
+    }
     return mowPlan({
       outline: shownArea.outline,
       holes,
@@ -218,19 +264,20 @@ export function useMowPlan({
       toolWidth,
       angle: effectiveAngle,
     });
-  }, [realPlan, wantPlan, shownMap, shownArea, toolWidth, params, effectiveAngle, areaProps]);
+  }, [realPlan, wantPlan, shownMap, shownArea, toolWidth, params, effectiveAngle, areaProps, planner]);
 
   // the mower's own plan comes already joined up, the estimate gets its zigzags here
   const stripes = useMemo(
     () =>
-      plan && (realPlan ? plan.stripes : toolWidth ? linkStripes(plan.stripes, effectiveAngle, toolWidth) : undefined),
+      plan &&
+      (realPlan || plan.lanes ? plan.stripes : toolWidth ? linkStripes(plan.stripes, effectiveAngle, toolWidth) : undefined),
     [plan, realPlan, toolWidth, effectiveAngle],
   );
 
   // how long the plan is to drive, closed passes included, the drives between the pieces not
   const planLength = useMemo(() => {
     if (!plan || !stripes) return 0;
-    const closed = plan.loops.map((o) => (o.length > 1 ? [...o, o[0]] : o));
+    const closed = plan.open ? plan.loops : plan.loops.map((o) => (o.length > 1 ? [...o, o[0]] : o));
     return [...closed, ...stripes].reduce((s, o) => s + length(o), 0);
   }, [plan, stripes]);
 

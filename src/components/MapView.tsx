@@ -51,6 +51,9 @@ interface MapViewProps {
   stripes?: Point[][];
   // the outline passes of the mowing plan, drawn with the stripes
   loops?: Point[][];
+  // the loops are paths as driven (the mower's plan), drawn without closing them: closed, the line back to the start
+  // would cut across the area, even outside a bent one
+  openLoops?: boolean;
   // how far the current run got in the mower's plan: what's left is drawn, the planned part it has done only if
   // switched on in the layer menu (the track shows what it really drove)
   progress?: {done: Point[][]; todo: Point[][]};
@@ -156,6 +159,7 @@ export default function MapView({
   zoomable = false,
   stripes,
   loops,
+  openLoops,
   preview,
   overlay,
   markers,
@@ -706,7 +710,7 @@ export default function MapView({
           <path
             className={styles.stripes}
             d={loops
-              .map((o) => o.map((p, i) => `${i ? 'L' : 'M'}${toScreen(p.x, p.y).join(' ')}`).join('') + 'Z')
+              .map((o) => o.map((p, i) => `${i ? 'L' : 'M'}${toScreen(p.x, p.y).join(' ')}`).join('') + (openLoops ? '' : 'Z'))
               .join('')}
           />
         )}

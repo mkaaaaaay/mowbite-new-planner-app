@@ -36,7 +36,7 @@ export function readPlan(answer: {paths?: PlannerPath[]; angle?: number} | Plann
     if (p.outline) loops.push(p.points);
     else for (let i = 1; i < p.points.length; i++) stripes.push([p.points[i - 1], p.points[i]]);
   }
-  return {loops, stripes, angle: Array.isArray(answer) ? undefined : answer.angle};
+  return {loops, stripes, angle: Array.isArray(answer) ? undefined : answer.angle, open: true};
 }
 
 // what mowing.plan takes: a saved area by id, or an area as it is right now in the editor (map.json format,

@@ -536,6 +536,7 @@ function MapEditor() {
                 onInsertPending={(i, x, y) => setPendingPoints((prev) => prev.toSpliced(i, 0, {x, y}))}
                 stripes={stripes}
                 loops={plan?.loops}
+                openLoops={!!plan?.open}
                 preview={splitPreview ?? (merged ? [merged.outline] : undefined)}
                 markers={spot || problemSpots.length ? [...(spot ? [spot] : []), ...problemSpots] : undefined}
                 bodySpots={bodySpots ?? undefined}

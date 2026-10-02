@@ -33,6 +33,11 @@ android {
         }
     }
     buildTypes {
+        // a test build of its own: installs next to the released app instead of over it
+        debug {
+            applicationIdSuffix ".newplanner"
+            versionNameSuffix "-np"
+        }
         release {
             if (keystore) signingConfig signingConfigs.release
             minifyEnabled false

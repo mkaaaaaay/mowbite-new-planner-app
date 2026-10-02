@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <!-- the test build next to the released app -->
+    <string name="app_name">MowBite NP</string>
+    <string name="title_activity_main">MowBite NP</string>
+</resources>
