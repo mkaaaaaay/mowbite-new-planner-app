@@ -671,3 +671,17 @@
     display: none;
   }
 }
+
+/* the cards for all areas from the settings in a fold: without their own frame and title, the fold has them */
+.foldCards > section {
+  padding: 4px 14px 14px;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.foldCards > section > h2,
+.foldCards > section > div:first-child > h2 {
+  display: none;
+}

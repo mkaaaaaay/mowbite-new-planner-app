@@ -11,8 +11,8 @@ import {appMowers, saveAppMowers} from '@/lib/mowers';
 import {isApp} from '@/lib/native';
 import {setSwipeEnabled, useSwipeEnabled} from '@/lib/swipe';
 import {UpdateSettings} from '@/components/Updates';
-import {MowerBodySettings} from '@/components/MowerBodySettings';
-import {PlannerSettings} from '@/components/PlannerSettings';
+import {usePlannerSettings} from '@/lib/mowerBody';
+import Link from 'next/link';
 
 const noop = () => () => {};
 
@@ -184,6 +184,8 @@ export default function SettingsPage() {
   // back to wherever the gear was clicked, or the dashboard when the page was opened directly
   const back = () => (window.history.length > 1 ? router.back() : router.push('/'));
   const settings = useSyncExternalStore(settingsStore.subscribe, settingsStore.snapshot, settingsStore.serverSnapshot);
+  // the MowBite Planner on the mower: its settings are with the map
+  const planner = usePlannerSettings();
 
   return (
     <div className={styles.page}>
@@ -291,10 +293,15 @@ export default function SettingsPage() {
 
         </Group>
 
-        <Group id="mower" title={tr('Mower and planner')} note={tr('Kept on the mower itself, the same for every device.')}>
-          <MowerBodySettings styles={styles} />
-          <PlannerSettings styles={styles} />
-        </Group>
+        {planner && (
+          <section className={styles.card}>
+            <h2>{tr('Planner and mower sizes')}</h2>
+            <p className={styles.dim}>{tr('Everything for the planner is with the map now: under the map while no area is selected, and with an area its own.')}</p>
+            <Link href="/map" className={styles.pillButton}>
+              {tr('To the map')}
+            </Link>
+          </section>
+        )}
 
         <Group id="app" title={tr('App')}>
           <MowersSection settings={settings} />

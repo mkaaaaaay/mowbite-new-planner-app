@@ -40,6 +40,9 @@ import {BodyCheck} from './BodyCheck';
 import {AreaPlanner} from './AreaPlanner';
 import {Fold} from './Fold';
 import {useMowerBody, usePlannerSettings, type BodySpot} from '@/lib/mowerBody';
+import {MowerBodySettings} from '@/components/MowerBodySettings';
+import {PlannerSettings} from '@/components/PlannerSettings';
+import settingsStyles from '../settings/page.module.css';
 
 // useSearchParams needs a suspense boundary in a static export
 export default function MapPage() {
@@ -645,6 +648,23 @@ function MapEditor() {
                   )}
                   {mowAreas.length > 1 && (
                     <OrderBox areas={mowAreas} docked={docked} onSelect={selectArea} onMove={moveInOrder} />
+                  )}
+
+                  {/* everything for the planner is here at the map: for all areas and the mower's sizes, an area's own
+                      with the area */}
+                  {plannerSettings && (
+                    <Fold id="plannerAll" title={tr('Planner for all areas')}>
+                      <div className={styles.foldCards}>
+                        <PlannerSettings styles={settingsStyles} />
+                      </div>
+                    </Fold>
+                  )}
+                  {plannerSettings && (
+                    <Fold id="mowerSizes" title={tr('Mower sizes')}>
+                      <div className={styles.foldCards}>
+                        <MowerBodySettings styles={settingsStyles} />
+                      </div>
+                    </Fold>
                   )}
 
                   <MapBackups
