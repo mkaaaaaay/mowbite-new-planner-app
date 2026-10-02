@@ -187,7 +187,18 @@ export function useMowPlan({
       props.angle_min = p.angle_min;
       props.angle_max = p.angle_max;
     }
-    if (p.planner && Object.keys(p.planner).length) props.settings = p.planner;
+    // the area's planner settings as edited. The mower puts the saved area's under what's asked: one taken out here is
+    // asked for as it is for all areas, the plan would still have the saved one until the map is saved otherwise
+    const saved = liveMap?.areas.find((a) => a.id === area.id)?.properties;
+    const own = p.planner ?? {};
+    const dropped = Object.keys(saved?.planner ?? {}).filter((k) => own[k] === undefined && (planner?.settings[k]?.value ?? null) !== null);
+    const settings = {...Object.fromEntries(dropped.map((k) => [k, planner!.settings[k].value])), ...own};
+    if (Object.keys(settings).length) props.settings = settings;
+    // the same with a range taken out: half a turn or more is any way at all
+    if (props.angle_min === undefined && saved?.angle_min !== undefined && saved.angle_max !== undefined) {
+      props.angle_min = 0;
+      props.angle_max = Math.PI;
+    }
     if (asSaved && (planner || props.settings)) return {area_id: area.id, ...props};
     return {outline: area.outline, obstacles: obstaclesFor(area, map), ...props};
   };
@@ -196,7 +207,7 @@ export function useMowPlan({
     if (!stripesOn || !planned || !shownArea || !shownMap || planner === undefined) return null;
     return requestFor(shownArea, shownMap, unchanged);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stripesOn, planned, shownArea, shownMap, areaProps, planner, unchanged]);
+  }, [stripesOn, planned, shownArea, shownMap, areaProps, planner, unchanged, liveMap]);
   // what else a plan depends on: the planner's settings, the mower's mowing settings, the saved map
   const contextKey = useMemo(
     () => JSON.stringify([planner ? Object.entries(planner.settings).map(([k, v]) => [k, v.value]) : null, params, mapVersion(liveMap)]),
