@@ -17,6 +17,8 @@ type Area = {
   set: (key: string, value: unknown) => void;
   // the area's OpenMower outline passes, what counts for it while the planner has none of its own
   passes?: number;
+  // the outline passes in its plan (automatic: what the planner worked out for it)
+  planned?: number;
 };
 
 const PATTERNS = ['lanes', 'concentric', 'auto', 'crosshatch'];
@@ -66,16 +68,34 @@ function Row({label, help, note, children}: {label: string; help?: string; note?
   );
 }
 
-// what each choice does, shown under the one taken
-const EDGE_NOTES: Record<string, string> = {
-  hard: 'The lines are the border itself (a wall, a bed, a fence): nothing of the mower goes beyond them. Along them a strip about half as wide as the mower stays standing, that needs trimming.',
-  recorded:
-    'The lines are the track the middle of the mower drove when the area was recorded: the mower may reach beyond them as far as it did then, and mows right up to the edge.',
-};
+// what each choice does, shown under the one taken. The lines: with the strip the blade leaves along them (m, unknown
+// for hard ones without the body's width)
+function edgeNote(edges: unknown, strip: number | undefined): string | null {
+  if (edges === 'hard') {
+    if (strip === undefined)
+      return tr(
+        'The lines are the border itself (a wall, a bed, a fence): nothing of the mower goes beyond them. Along them a strip stays standing, from the side of the mower to its blade, that needs trimming.',
+      );
+    if (strip <= 0.005) return tr('The lines are the border itself (a wall, a bed, a fence): nothing of the mower goes beyond them, and the blade still reaches them.');
+    return tr(
+      'The lines are the border itself (a wall, a bed, a fence): nothing of the mower goes beyond them. Along them a strip of about {cm} cm stays standing (more in corners), that needs trimming.',
+      {cm: Math.round(strip * 100)},
+    );
+  }
+  if (edges !== 'recorded') return null;
+  if (strip === undefined || strip <= 0.005)
+    return tr(
+      'The lines are the track the middle of the mower drove when the area was recorded: the mower may reach beyond them as far as it did then, and the blade mows right up to them.',
+    );
+  return tr(
+    'The lines are the track the middle of the mower drove when the area was recorded: the mower may reach beyond them as far as it did then. The blade keeps about {cm} cm inside them.',
+    {cm: Math.round(strip * 100)},
+  );
+}
 const PATTERN_NOTES: Record<string, string> = {
   lanes: 'Straight lanes side by side, there and back: the quickest, with even stripes.',
   concentric: 'Rounds from the outside in: few turns, but a lot of tight turning in the corners.',
-  auto: 'The planner works out lanes and rings and takes the one that turns tightly less and leaves less unmowed: gentle on the lawn.',
+  auto: 'The planner works out lanes and rings and takes the better one overall: a short way, little tight turning, little left standing.',
   crosshatch: 'Lanes, then the same again across them: twice as long, very thorough.',
 };
 
@@ -135,6 +155,18 @@ export function PlannerSimple({area, toolWidth}: {area?: Area; toolWidth?: numbe
   const passesAuto = autoPasses !== undefined && passes === autoPasses;
   const passesShown = area && area.own.perimeter_passes === undefined ? (area.passes ?? global('perimeter_passes')) : passes;
   const least = value('min_turn_radius');
+  // how far in from the lines the blade's edge stays on the first outline pass (the planner's blade_loop_offset less
+  // half the blade): perimeter_offset, by default half the blade (it reaches the lines), with hard edges at least half
+  // the body's width less the blade's offset
+  const num = (k: string) => (typeof effective(k) === 'number' ? (effective(k) as number) : undefined);
+  const first = num('perimeter_offset') ?? 0.5 * blade;
+  const width = num('robot_width');
+  const strip =
+    effective('edges') !== 'hard'
+      ? first - 0.5 * blade
+      : width === undefined
+        ? undefined
+        : Math.max(first, 0.5 * width - Math.abs(num('blade_offset') ?? 0)) - 0.5 * blade;
 
   return (
     <div className={local.simple}>
@@ -142,7 +174,7 @@ export function PlannerSimple({area, toolWidth}: {area?: Area; toolWidth?: numbe
         <Row
           label={tr('Lines of the map')}
           help={tr('What the lines of your map stand for. Recorded by driving the mower around: "driven along the edge". Drawn on the screen right along a wall or a bed: "the wall itself".')}
-          note={EDGE_NOTES[String(effective('edges'))] ? tr(EDGE_NOTES[String(effective('edges'))]) : null}
+          note={edgeNote(effective('edges'), strip)}
         >
           <Choice
             options={[
@@ -215,7 +247,14 @@ export function PlannerSimple({area, toolWidth}: {area?: Area; toolWidth?: numbe
         <Row
           label={tr('Outline passes')}
           help={tr('How many rounds the mower drives along the edge first, before it mows the inside. The rounds leave it room to turn at the ends of the lanes.')}
-          note={passesAuto ? tr('As many as the turns at the ends of the lanes need, usually 2 to 4.') : null}
+          note={
+            passesAuto
+              ? tr('As many as the turns at the ends of the lanes need room for: the further the mower reaches past its drive wheels and the wider its curves, the more.') +
+                (area?.planned !== undefined ? ' ' + tr('For this area: {n}.', {n: area.planned}) : '')
+              : autoPasses !== undefined
+                ? tr('Always this many, however much room the turns need. "automatic" works it out to fit the mower.')
+                : null
+          }
         >
           <div className={local.inline}>
             {autoPasses !== undefined && (
@@ -244,8 +283,12 @@ export function PlannerSimple({area, toolWidth}: {area?: Area; toolWidth?: numbe
       {has('min_turn_radius') && (
         <Row
           label={tr('Tightest curve radius')}
-          help={tr('In a tighter curve the inner wheel stands still or turns backwards and tears the lawn. Where no curve this wide fits, the mower turns on the spot once instead.')}
-          note={tr('Larger is gentler on the lawn but needs more room at the edge. About half the distance between the drive wheels, often 20 to 30 cm.')}
+          help={
+            planner.can_back_up === true
+              ? tr('The tighter a curve, the slower the inner wheel turns, at the tightest it stands still or turns backwards and tears the lawn. Where no curve this wide fits, the mower turns on the spot instead, or backs up briefly where that is on.')
+              : tr('The tighter a curve, the slower the inner wheel turns, at the tightest it stands still or turns backwards and tears the lawn. Where no curve this wide fits, the mower turns on the spot instead.')
+          }
+          note={tr('Larger is gentler on the lawn but needs more room at the edge. At half the distance between the drive wheels the inner wheel just stands still: take a little more than that.')}
         >
           <label className={local.field}>
             cm

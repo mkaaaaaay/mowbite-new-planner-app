@@ -762,6 +762,7 @@ function MapEditor() {
                     area={{
                       own: selectedArea.properties.planner ?? {},
                       passes: selectedArea.properties.outline_count,
+                      planned: plan?.chosen?.perimeter_passes,
                       set: (key, value) => {
                         const own = {...(selectedArea.properties.planner ?? {})};
                         if (value === undefined || value === null) delete own[key];
