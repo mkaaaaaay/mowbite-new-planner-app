@@ -162,6 +162,17 @@ export const FIELDS: Record<string, Field> = {
     choices: {u_turn: 'U-turn', bulb: 'Bulb turn', k_turn: 'Three-point turn', detour: 'Detour along the edge', pivot: 'Turn on the spot'},
     advanced: true,
   },
+  smooth_spins: {
+    label: 'Loop out instead of turning on the spot',
+    help: 'Where a path would turn on the spot by a lot, the mower drives a small loop instead, where it fits. Gentler on the lawn.',
+    group: 'turns',
+  },
+  allow_reverse: {
+    label: 'Back up where needed',
+    help: 'Three-point turns where nothing else fits. Only with an OpenMower that can back up along the plan, otherwise the mower stops there.',
+    group: 'turns',
+    advanced: true,
+  },
   route_order: {
     label: 'Order of the parts',
     help: 'The closest part not mowed yet next, or the order with the shortest drives between them (takes a little longer to plan).',

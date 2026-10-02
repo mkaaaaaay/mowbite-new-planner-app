@@ -799,6 +799,18 @@ function drivenSpace(geoms: Point[][][], half: number, ahead: number): Paths {
   return clip(parts, [], ClipperLib.ClipType.ctUnion);
 }
 
+// where the centre may go for turns and to clip lanes, like the planner's drive_space: the room, on recorded edges with
+// the body checked body_tolerance past it (not into an area to keep out of)
+function driveSpace(input: PlannerEstimateInput, room: Paths): Paths {
+  const b = input.body;
+  const tolerance = b?.tolerance ?? 0.05;
+  if (!b || !b.recorded || b.width <= 0 || b.front + b.rear <= 0 || tolerance <= 0 || !room.length) return room;
+  let space = grow(room, tolerance, ClipperLib.JoinType.jtRound);
+  const keepOut = b.keepOut.filter((k) => k.length > 2).map((k) => ccw(toPath(k)));
+  if (keepOut.length) space = clip(space, keepOut, ClipperLib.ClipType.ctDifference);
+  return space;
+}
+
 // where the body may be: the area and the other lawns, on recorded edges also where the body was when they were
 // recorded, grown by the tolerance (square corners), without the areas nothing goes over
 function bodyOf(input: PlannerEstimateInput, free: Paths, freeRings: Point[][]): Body | null {
@@ -1037,13 +1049,35 @@ function between(a: Ring, b: Ring, max = Infinity): {d: number; p: Point; q: Poi
 }
 
 // like the planner's _splice: ring with a trip round other from the closest points between them (p on ring, q on
-// other), there over to other, round it and back, on along ring
-function splice(ring: Point[], other: Point[], p: Point, q: Point): Point[] {
-  const closedRing = [...ring, ring[0]];
-  const round = [...other, other[0]];
-  const i = closestOnPolyline(closedRing, p);
-  const j = closestOnPolyline(round, q);
-  return [...ring.slice(0, i.i + 1), i.q, j.q, ...round.slice(j.i + 1), ...round.slice(1, j.i + 1), j.q, i.q, ...ring.slice(i.i + 1)];
+// other), over to other, round it and back, on along ring. lead: it leaves ring that far before that point and gets
+// back that far after it, and goes round other from that far after to that far before its point (hops at a slant)
+function splice(ring: Point[], other: Point[], p: Point, q: Point, lead: number): Point[] {
+  // pts (closed) from lead after the point closest to near round to lead before it
+  const fromTo = (pts: Point[], near: Point): Point[] => {
+    const c = closestOnPolyline(pts, near);
+    const cum = [0];
+    for (let k = 1; k < pts.length; k++) cum.push(cum[k - 1] + dist(pts[k - 1], pts[k]));
+    const n = cum[cum.length - 1];
+    const d = Math.min(lead, 0.25 * n);
+    const t0 = cum[c.i] + dist(pts[c.i], c.q) + d;
+    const point = (t: number): Point => {
+      t = ((t % n) + n) % n;
+      let k = 0;
+      while (k + 1 < cum.length && cum[k + 1] <= t) k++;
+      k = Math.min(k, pts.length - 2);
+      const f = (t - cum[k]) / Math.max(cum[k + 1] - cum[k], 1e-12);
+      return {x: pts[k].x + f * (pts[k + 1].x - pts[k].x), y: pts[k].y + f * (pts[k + 1].y - pts[k].y)};
+    };
+    const span = n - 2 * d;
+    const inner = pts
+      .slice(0, -1)
+      .map((pt, k) => ({t: (((cum[k] - t0) % n) + n) % n, pt}))
+      .sort((a, b) => a.t - b.t)
+      .filter(({t}) => t > 1e-9 && t < span - 1e-9)
+      .map(({pt}) => pt);
+    return [point(t0), ...inner, point(t0 + span)];
+  };
+  return [...fromTo([...ring, ring[0]], p), ...fromTo([...other, other[0]], q)];
 }
 
 // like the planner's _clear_of_corners: a loop's start moved on segment i away from a corner next to it
@@ -1124,16 +1158,19 @@ class LoopRoute {
     private spacing: number,
     private cornerRadius: number,
     private direction: string,
+    // where the plan ends (the docking station): the last of the loops driven as one part starts and ends closest to it
+    private end: Point | null = null,
   ) {}
 
   private distance(ring: Ring) {
     return ring.closest(this.state.pos)?.d ?? Infinity;
   }
 
-  drive(ring: Ring) {
+  drive(ring: Ring, toEnd = false) {
     const s = this.state;
     let target = s.pos;
-    if (s.started && s.heading !== null) {
+    if (toEnd && this.end) target = this.end;
+    else if (s.started && s.heading !== null) {
       const lead = 2 * this.spacing;
       target = {x: s.pos.x + lead * Math.cos(s.heading), y: s.pos.y + lead * Math.sin(s.heading)};
     }
@@ -1219,7 +1256,7 @@ class LoopRoute {
           if (gaps[i].d <= closest + 0.5 * this.spacing && (parent < 0 || o.depth > outer[parent][0].depth)) parent = i;
         });
         const [p, pi] = outer[parent];
-        items[pi] = new Ring(splice(p.ring, item.ring, gaps[parent].p, gaps[parent].q), p.hole, p.depth);
+        items[pi] = new Ring(splice(p.ring, item.ring, gaps[parent].p, gaps[parent].q, this.spacing), p.hole, p.depth);
         items[at] = null;
       }
       loops = items.filter((o): o is Ring => !!o);
@@ -1233,7 +1270,7 @@ class LoopRoute {
       const ds = ready.map((i) => this.distance(loops[i]));
       const i = ready[ds.indexOf(Math.min(...ds))];
       done.add(i);
-      this.drive(loops[i]);
+      this.drive(loops[i], done.size === loops.length);
     }
   }
 }
@@ -1325,6 +1362,8 @@ interface Prepared {
   target: Point[][];
   roomRings: Point[][];
   room: Space;
+  // the same a hair wider, like the planner's checks whether a turn is free (a lane end lies right on its edge)
+  turnRoom: Space;
   body: Body | null;
   // where the mower is when the lanes start
   state: RouteState;
@@ -1449,10 +1488,17 @@ function prepareNow(input: PlannerEstimateInput): Prepared | null {
   };
   const last = input.perimeterOrder === 'last';
   // (with the loops last only their drives count, from where they start: about the same)
-  const route = new LoopRoute(last ? {...state} : state, spacing, input.cornerRadius ?? 0.15, input.perimeterDirection ?? 'auto');
+  const route = new LoopRoute(
+    last ? {...state} : state,
+    spacing,
+    input.cornerRadius ?? 0.15,
+    input.perimeterDirection ?? 'auto',
+    input.start ? {x: input.start.x, y: input.start.y} : null,
+  );
   if (ringed) route.concentric(levels, middles, !concentric);
   else route.perimeter(perimeterLevels, ringsWithKind(free, 0).filter((h) => h.hole).map((h) => h.ring));
   const roomRings = ringsOf(inset(free, first + Math.abs(lateral)));
+  const drive = driveSpace(input, inset(free, first + Math.abs(lateral)));
   return {
     free,
     half,
@@ -1460,7 +1506,8 @@ function prepareNow(input: PlannerEstimateInput): Prepared | null {
     region: ringsOf(laneRegion),
     target: ringsOf(remaining),
     roomRings,
-    room: new Space(roomRings),
+    room: new Space(ringsOf(drive)),
+    turnRoom: new Space(ringsOf(grow(drive, 1e-3, ClipperLib.JoinType.jtRound))),
     body: bodyOf(input, free, freeRings),
     state,
     between: route.between,
@@ -1519,7 +1566,7 @@ export function plannerEstimate(input: PlannerEstimateInput): PlannerEstimate | 
   const lateral = input.bladeOffset ?? 0;
   const laneOrder = input.laneOrder ?? 'skip';
   const turnTypes = (input.turnTypes ?? ['u_turn', 'bulb', 'k_turn', 'detour', 'pivot']).filter((t) => t !== 'k_turn' || input.allowReverse);
-  const {body, room} = prep;
+  const {body, room, turnRoom} = prep;
   // m, the turns between the lanes and the drives to the cells, about as the planner's turns go
   let between = prep.between;
   let lanesStarted = prep.state.started;
@@ -1564,9 +1611,9 @@ export function plannerEstimate(input: PlannerEstimateInput): PlannerEstimate | 
           if (level > 1e-6 && level < most) {
             const exit = {x: pos.x, y: pos.y, yaw: heading};
             const gentle = turnTypes.filter((t) => t !== 'detour' && t !== 'pivot');
-            if (!turnFits(exit, pa, r, step, gentle, room, body)) {
+            if (!turnFits(exit, pa, r, step, gentle, turnRoom, body)) {
               const start = {x: pa.x + level * ux, y: pa.y + level * uy};
-              if (turnFits(exit, start, r, step, gentle, room, body)) pa = start;
+              if (turnFits(exit, start, r, step, gentle, turnRoom, body)) pa = start;
             }
           }
         }
