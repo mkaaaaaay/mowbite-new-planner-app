@@ -51,6 +51,7 @@ export function PlannerField({
   placeholder,
   globalLabel,
   unavailable,
+  warning,
 }: {
   name: string;
   setting: PlannerSetting;
@@ -63,6 +64,8 @@ export function PlannerField({
   globalLabel?: string;
   // why it can't be used on this mower: shown greyed out with this under it
   unavailable?: string | null;
+  // what's off about the value set, shown under it
+  warning?: string | null;
 }) {
   const field: Field | undefined = FIELDS[name];
   const label = (
@@ -169,8 +172,17 @@ export function PlannerField({
           </button>
         </span>
       )}
+      {warning && <span className={styles.error}>{warning}</span>}
     </label>
   );
+}
+
+// a turn radius under min_turn_radius: the planner takes min_turn_radius then, null when it's fine
+export function turnRadiusWarning(all: Record<string, PlannerSetting>, radius: unknown): string | null {
+  const least = all.min_turn_radius?.value;
+  const r = typeof radius === 'number' ? radius : all.turn_radius?.value;
+  if (typeof least !== 'number' || least <= 0 || typeof r !== 'number' || r >= least - 1e-9) return null;
+  return tr('Tighter than the tightest curve radius ({min} m): the planner takes {min} m.', {min: toInput(FIELDS.turn_radius, least)});
 }
 
 // lane spacing and outline passes both worked out by the planner, as one switch
@@ -272,6 +284,11 @@ export function PlannerSettings({styles}: {styles: Styles}) {
     k === 'allow_reverse' && settings.can_back_up !== true
       ? tr("This mower's OpenMower doesn't back up along the plan yet (back_up_with_plan), the planner leaves it out.")
       : null;
+  // a number as typed, the planner's value while it's empty or not a number
+  const typed = (k: string) => {
+    const v = fromInput(FIELDS[k], String(shown[k] ?? ''));
+    return typeof v === 'number' ? v : undefined;
+  };
   const field = (k: string) => (
     <div key={k} className={[wide(k) ? local.wide : '', all[k].stored ? local.changed : ''].filter(Boolean).join(' ') || undefined}>
       <PlannerField
@@ -280,6 +297,7 @@ export function PlannerSettings({styles}: {styles: Styles}) {
         value={shown[k] ?? ''}
         styles={styles}
         unavailable={unavailable(k)}
+        warning={k === 'turn_radius' ? turnRadiusWarning(all, typed(k)) : null}
         onChange={(v) => {
           setForm({...form, [k]: v});
           setState({});

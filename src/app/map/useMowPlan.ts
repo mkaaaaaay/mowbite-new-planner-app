@@ -354,7 +354,8 @@ export function useMowPlan({
       crosshatchAngle: num('crosshatch_angle', Math.PI / 2),
       minLaneLength: num('min_lane_length', 0.1),
       narrowParts: str('narrow_parts', 'lanes'),
-      turnRadius: num('turn_radius', 0.25),
+      // (no tighter than min_turn_radius, the planner takes that then)
+      turnRadius: Math.max(num('turn_radius', 0.25), num('min_turn_radius', 0)),
       laneOrder: str('lane_order', 'skip'),
       bladeAhead: num('blade_ahead', 0),
       bladeOffset: num('blade_offset', 0),

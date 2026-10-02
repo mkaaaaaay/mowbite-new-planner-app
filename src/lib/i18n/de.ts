@@ -691,6 +691,7 @@ const de: Record<string, string> = {
   "A mowing area lying in another (90 % of it at least) is left out of the bigger one and mowed round, it gets a plan of its own with its own settings (another angle, not mowed). Off: the bigger one mows across it.": "Eine Mähfläche, die in einer anderen liegt (mindestens zu 90 %), wird aus der größeren ausgespart und umrundet und bekommt einen eigenen Plan mit eigenen Einstellungen (anderer Winkel, nicht mähen). Aus: Die größere mäht darüber.",
   "Leeway past the edges": "Spielraum über die Kanten",
   "Tightest curve radius": "Kleinster Bogenradius",
+  "Tighter than the tightest curve radius ({min} m): the planner takes {min} m.": "Enger als der kleinste Bogenradius ({min} m): Der Planer nimmt {min} m.",
   "The lines are where the middle of the mower drove along the edge, like OpenMower records them: the body may be where it was then (half its width either side, the front past corners and on the outside of bends), and the leeway more.": "Die Linien sind die Bahn der Mähermitte an der Kante entlang, so wie OpenMower sie aufzeichnet: Die Karosserie darf dort sein, wo sie dabei war (eine halbe Breite zu beiden Seiten, vorne über Ecken hinaus und außen in Kurven), plus den Spielraum.",
   "Lies inside \"{name}\": left out of it and mowed on its own, with its own settings.": "Liegt in „{name}“: Wird dort ausgespart und eigenständig mit den eigenen Einstellungen gemäht.",
   "Shorter pieces of a lane are left out.": "Kürzere Bahnstücke werden weggelassen.",

@@ -1,6 +1,6 @@
 'use client';
 
-import {PlannerDecides, PlannerField} from '@/components/PlannerSettings';
+import {PlannerDecides, PlannerField, turnRadiusWarning} from '@/components/PlannerSettings';
 import {tr} from '@/lib/i18n';
 import {usePlannerSettings} from '@/lib/mowerBody';
 import {FIELDS, fromInput, toInput} from '@/lib/plannerFields';
@@ -77,6 +77,7 @@ export function AreaPlanner({
               styles={local}
               value={isChoice ? (typeof value === 'string' ? value : '') : (drafts[key] ?? toInput(FIELDS[key], value))}
               globalLabel={isChoice ? tr('like all areas ({value})', {value: globalText(key)}) : undefined}
+              warning={key === 'turn_radius' ? turnRadiusWarning(all, value) : null}
               placeholder={tr('all areas: {value}', {value: globalText(key)})}
               onChange={(v) => {
                 if (isChoice) return set(key, v, true);
