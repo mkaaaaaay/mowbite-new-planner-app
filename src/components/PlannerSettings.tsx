@@ -2,7 +2,7 @@
 
 import {tr} from '@/lib/i18n';
 import {loadPlannerSettings, savePlannerSettings, usePlannerSettings, type PlannerSetting} from '@/lib/mowerBody';
-import {BODY_KEYS, FIELDS, fromInput, GROUPS, toInput, type Field, type Group} from '@/lib/plannerFields';
+import {BODY_KEYS, FIELDS, fromInput, GROUPS, MODE_SETS, toInput, type Field, type Group} from '@/lib/plannerFields';
 import {RpcError} from '@/lib/rpc';
 import {useEffect, useState} from 'react';
 import InfoTip from './InfoTip';
@@ -100,16 +100,17 @@ export function PlannerField({
         {label}
         <div className={styles.segment}>
           {globalLabel !== undefined && (
-            <button className={value === '' ? styles.segmentOn : undefined} onClick={() => onChange('')}>
+            <button className={value === '' ? styles.segmentOn : undefined} disabled={!!unavailable} onClick={() => onChange('')}>
               {globalLabel}
             </button>
           )}
           {choices.map((c) => (
-            <button key={c} className={value === c ? styles.segmentOn : undefined} onClick={() => onChange(c)}>
+            <button key={c} className={value === c ? styles.segmentOn : undefined} disabled={!!unavailable} onClick={() => onChange(c)}>
               {tr(field?.choices?.[c] ?? c)}
             </button>
           ))}
         </div>
+        {unavailable && <p className={styles.dim}>{unavailable}</p>}
       </div>
     );
   }
@@ -200,6 +201,14 @@ export function PlannerDecides({
   );
 }
 
+// why a setting doesn't count with this mode: set by it, or OpenMower's old planner plans
+export function modeNote(mode: string, key: string): string | null {
+  const name = FIELDS.mode.choices?.[mode];
+  if (key === 'mode' || mode === 'custom' || !name) return null;
+  if (mode === 'slic3r') return tr("OpenMower's old planner plans, this doesn't count.");
+  return MODE_SETS.includes(key) ? tr('Set by the mode "{mode}".', {mode: tr(name)}) : null;
+}
+
 export function PlannerSettings({styles}: {styles: Styles}) {
   const settings = usePlannerSettings();
   // only what was changed here, the rest shows what the planner has
@@ -266,11 +275,13 @@ export function PlannerSettings({styles}: {styles: Styles}) {
 
   // choices and lists take the whole row
   const wide = (k: string) => all[k].type === 'list' || (all[k].type === 'string' && !!all[k].choices?.length);
+  // a mode other than custom sets some of them itself
+  const mode = typeof shown.mode === 'string' && shown.mode ? shown.mode : 'custom';
   // backing up needs OpenMower's controller to back up where the plan does, the planner leaves it out otherwise
   const unavailable = (k: string) =>
     k === 'allow_reverse' && settings.can_back_up !== true
       ? tr("This mower's OpenMower doesn't back up along the plan yet (back_up_with_plan), the planner leaves it out.")
-      : null;
+      : modeNote(mode, k);
   const field = (k: string) => (
     <div key={k} className={[wide(k) ? local.wide : '', all[k].stored ? local.changed : ''].filter(Boolean).join(' ') || undefined}>
       <PlannerField

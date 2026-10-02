@@ -1,6 +1,6 @@
 'use client';
 
-import {PlannerDecides, PlannerField} from '@/components/PlannerSettings';
+import {modeNote, PlannerDecides, PlannerField} from '@/components/PlannerSettings';
 import {tr} from '@/lib/i18n';
 import {usePlannerSettings} from '@/lib/mowerBody';
 import {FIELDS, fromInput, toInput} from '@/lib/plannerFields';
@@ -31,6 +31,8 @@ export function AreaPlanner({
   const keys = AREA_KEYS.filter((k) => all[k]?.settable);
   if (!keys.length) return null;
   const own = properties.planner ?? {};
+  // the area's mode, else the one for all areas: what it sets doesn't count here
+  const mode = typeof own.mode === 'string' ? own.mode : typeof all.mode?.value === 'string' ? (all.mode.value as string) : 'custom';
 
   const set = (key: string, value: unknown, undoable: boolean) => {
     const next = {...own};
@@ -77,6 +79,7 @@ export function AreaPlanner({
               styles={local}
               value={isChoice ? (typeof value === 'string' ? value : '') : (drafts[key] ?? toInput(FIELDS[key], value))}
               globalLabel={isChoice ? tr('like all areas ({value})', {value: globalText(key)}) : undefined}
+              unavailable={modeNote(mode, key)}
               placeholder={tr('all areas: {value}', {value: globalText(key)})}
               onChange={(v) => {
                 if (isChoice) return set(key, v, true);
