@@ -52,12 +52,22 @@ export type PlanRequest =
       outline_offset?: number;
       angle_min?: number;
       angle_max?: number;
+      // the area's MowBite Planner settings as edited (its planner property)
+      settings?: Record<string, unknown>;
     };
 
-// null when this mower can't tell, then the editor works it out itself (lib/mowPlan)
+// null when this mower can't tell, then the editor works it out itself (lib/mowPlan). With planner settings for
+// the area the MowBite Planner plans it directly (planner.plan): mowing.plan only knows OpenMower's area settings,
+// and the planner reads an area's own ones from the saved map, not from what's being edited
 export async function mowerPlan(req: PlanRequest): Promise<MowPlan | null> {
-  if (!(await rpcMethods())?.has(RPC.areaPlan)) return null;
-  return readPlan(await callRpc(RPC.areaPlan, req, 20000));
+  const known = await rpcMethods();
+  if ('settings' in req && req.settings && known?.has(RPC.plannerPlan)) {
+    return readPlan(await callRpc(RPC.plannerPlan, req, 30000));
+  }
+  if (!known?.has(RPC.areaPlan)) return null;
+  // mowing.plan doesn't take planner settings
+  const plain = Object.fromEntries(Object.entries(req).filter(([k]) => k !== 'settings'));
+  return readPlan(await callRpc(RPC.areaPlan, plain, 20000));
 }
 
 // the plan in the order it's driven, for showing the progress of a run

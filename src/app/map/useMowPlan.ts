@@ -9,7 +9,7 @@ import {linkStripes, mowPlan, type MowPlan} from '@/lib/mowPlan';
 import {angleInRange, autoMowAngle} from '@/lib/mowStripes';
 import {PARAM} from '@/lib/openmower';
 import {length} from '@/lib/planProgress';
-import {useEffect, useMemo, useRef, useState} from 'react';
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {DEG} from './editing';
 import type {AngleMismatch} from './MowSettings';
 
@@ -140,33 +140,53 @@ export function useMowPlan({
       req.angle_min = p.angle_min;
       req.angle_max = p.angle_max;
     }
+    if (p.planner && Object.keys(p.planner).length) req.settings = p.planner;
     return req;
   }, [stripesOn, planned, shownArea, shownMap, areaProps]);
   const planKey = planRequest ? JSON.stringify(planRequest) : '';
   // the angle a plan is for: the mower's answer for another one has the stripes the wrong way
   const angleKey =
-    planRequest && 'outline' in planRequest ? JSON.stringify([planRequest.angle, planRequest.angle_min, planRequest.angle_max]) : '';
+    planRequest && 'outline' in planRequest
+      ? JSON.stringify([
+          planRequest.angle,
+          planRequest.angle_min,
+          planRequest.angle_max,
+          ...['angle', 'angle_strategy', 'angle_offset', 'angle_min', 'angle_max'].map((k) => planRequest.settings?.[k]),
+        ])
+      : '';
   const [fromMower, setFromMower] = useState<{areaId: string | null; key: string; angleKey: string; plan: MowPlan | null} | null>(
     null,
   );
+  // one plan at a time: planning takes the mower a second or more (several with the body check), the newest of the
+  // ones asked for meanwhile goes next, the ones in between are left out
+  const asking = useRef(false);
+  const next = useRef<{areaId: string | null; key: string; angleKey: string} | null>(null);
+  const ask = useCallback(function send(job: {areaId: string | null; key: string; angleKey: string}) {
+    if (asking.current) {
+      next.current = job;
+      return;
+    }
+    asking.current = true;
+    void mowerPlan(JSON.parse(job.key))
+      .then(
+        (plan) => setFromMower({...job, plan}),
+        () => setFromMower({...job, plan: null}),
+      )
+      .finally(() => {
+        asking.current = false;
+        const queued = next.current;
+        next.current = null;
+        if (queued && queued.key !== job.key) send(queued);
+      });
+  }, []);
   // not while a point is dragged or the angle is moving: a new plan redrawn mid-drag makes it stutter, and every
-  // pause of the slider would queue up a plan on the mower (about a second each there)
+  // pause of the slider would queue up a plan on the mower
   useEffect(() => {
     if (!planKey || draggingPoint || angleMoving) return;
-    const areaId = selectedAreaId;
-    let alive = true;
     // while points are typed or clicked only once it settles
-    const t = setTimeout(() => {
-      void mowerPlan(JSON.parse(planKey)).then(
-        (plan) => alive && setFromMower({areaId, key: planKey, angleKey, plan}),
-        () => alive && setFromMower({areaId, key: planKey, angleKey, plan: null}),
-      );
-    }, 300);
-    return () => {
-      alive = false;
-      clearTimeout(t);
-    };
-  }, [planKey, angleKey, selectedAreaId, draggingPoint, angleMoving]);
+    const t = setTimeout(() => ask({areaId: selectedAreaId, key: planKey, angleKey}), 300);
+    return () => clearTimeout(t);
+  }, [planKey, angleKey, selectedAreaId, draggingPoint, angleMoving, ask]);
   // while the angle is moving the estimate follows right away, and it stays until the mower's plan for that angle is
   // there. Other changes (a point moved) keep the last answer for this area up while a newer one is on its way, so it
   // doesn't flicker back to the estimate

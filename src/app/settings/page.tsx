@@ -14,6 +14,7 @@ import {isApp} from '@/lib/native';
 import {setSwipeEnabled, useSwipeEnabled} from '@/lib/swipe';
 import {UpdateSettings} from '@/components/Updates';
 import {MowerBodySettings} from '@/components/MowerBodySettings';
+import {PlannerSettings} from '@/components/PlannerSettings';
 
 function IconChoice({
   icons,
@@ -347,6 +348,8 @@ export default function SettingsPage() {
         </section>
 
         <MowerBodySettings styles={styles} />
+
+        <PlannerSettings styles={styles} />
 
         <section className={styles.card}>
           <h2>{tr('Docking station icon')}</h2>

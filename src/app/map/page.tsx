@@ -37,6 +37,7 @@ import {useMapEdits} from './useMapEdits';
 import {checkMap} from '@/lib/mapCheck';
 import Problems from './Problems';
 import {BodyCheck} from './BodyCheck';
+import {AreaPlanner} from './AreaPlanner';
 import {useMowerBody, type BodySpot} from '@/lib/mowerBody';
 
 // useSearchParams needs a suspense boundary in a static export
@@ -709,6 +710,9 @@ function MapEditor() {
                   onPreviewCorrection={setPreviewCorrection}
                   angle={{offset: angleOffset, offsetIsAbsolute, increment: angleIncrement}}
                 />
+              )}
+              {selectedArea && mode === 'idle' && simplifyCm === null && selectedArea.properties.type === 'mow' && (
+                <AreaPlanner properties={selectedArea.properties} update={updateProperties} remember={remember} />
               )}
               {selectedArea && mode === 'idle' && simplifyCm === null && selectedArea.properties.type === 'mow' && body && realPlan && (
                 <BodyCheck request={planRequest} onSpots={setBodySpots} />

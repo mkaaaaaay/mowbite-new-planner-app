@@ -2,7 +2,7 @@
 
 import type {PlanRequest} from '@/lib/areaPlan';
 import {tr} from '@/lib/i18n';
-import {checkBody, type BodyCheck as Result, type BodySpot} from '@/lib/mowerBody';
+import {checkBody, usePlannerSettings, type BodyCheck as Result, type BodySpot} from '@/lib/mowerBody';
 import {RpcError} from '@/lib/rpc';
 import {useEffect, useState} from 'react';
 import styles from './page.module.css';
@@ -19,6 +19,7 @@ const KINDS: Record<string, string> = {
 // out further than the map allows, drawn on the map. Asked on demand, the check takes a few seconds on the mower.
 export function BodyCheck({request, onSpots}: {request: PlanRequest | null; onSpots: (spots: BodySpot[] | null) => void}) {
   const [state, setState] = useState<{key: string; busy?: boolean; result?: Result | null; error?: string} | null>(null);
+  const recorded = usePlannerSettings()?.settings.edges?.value !== 'hard';
   const key = request ? JSON.stringify(request) : '';
   // an older answer doesn't fit what's edited now
   const current = state?.key === key ? state : null;
@@ -59,6 +60,13 @@ export function BodyCheck({request, onSpots}: {request: PlanRequest | null; onSp
           <span className={styles.dim}>{tr('The body fits everywhere.')}</span>
         ))}
       {current?.error && <span className={styles.warningText}>{current.error}</span>}
+      {recorded && spots.some((s) => s.kind === 'loop') && (
+        <span className={styles.dim}>
+          {tr(
+            'Corners of the outline passes on lines driven along the edge: the check takes the wall to be half the width beyond the line everywhere, the mower drove there itself when recording. An outline offset for the area moves the passes in.',
+          )}
+        </span>
+      )}
     </div>
   );
 }

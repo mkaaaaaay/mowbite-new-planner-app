@@ -31,6 +31,9 @@ export interface MapArea {
     // openmower that knows it
     angle_min?: number;
     angle_max?: number;
+    // MowBite Planner settings for this area only (pattern, turns...), on top of the ones for all areas. Only the
+    // MowBite Planner reads it, and only a mower_map that keeps properties it doesn't know saves it
+    planner?: Record<string, unknown>;
   };
   outline: Point[];
 }
