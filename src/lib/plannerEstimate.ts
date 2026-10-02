@@ -481,7 +481,8 @@ export function scanLanes(rings: Point[][], angle: number, spacing: number, minL
       intervals = unite(longer, []);
     }
     const y = base + j * step;
-    return intervals.filter(([lo, hi]) => hi - lo >= minLength).map(([lo, hi]): Lane => ({x0: lo, x1: hi, y, row: j}));
+    // (a lengthened piece is minLength long give or take rounding, the planner keeps those too)
+    return intervals.filter(([lo, hi]) => hi - lo >= minLength - 1e-9).map(([lo, hi]): Lane => ({x0: lo, x1: hi, y, row: j}));
   });
   // the outer rows only if something was stretched into them
   if (!out[0].length) out = out.slice(1);
