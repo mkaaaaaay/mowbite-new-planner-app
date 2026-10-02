@@ -4,17 +4,14 @@ import {TitleMark} from '@/components/Logo';
 import MapView from '@/components/MapView';
 import TrackPicker from '@/components/TrackPicker';
 import {saveMap, useMowerMap, type MowerMap, type Point} from '@/hooks/useMowerMap';
-import {useMowerSensors} from '@/hooks/useMowerSensors';
 import {useMowerPosition} from '@/hooks/useMowerPosition';
-import {useMowerState} from '@/hooks/useMowerState';
+import {useDocked, useMowerStateValue} from '@/hooks/useMowerState';
 import {clearTrack, trackPoints, useMowerTrack} from '@/hooks/useMowerTrack';
 import {datumFromParams, numParam, useMowerParams} from '@/hooks/useMowerParams';
 import {loadJobTrack, useJobList, useMowHistory, type TrackSegment} from '@/hooks/useMowHistory';
 import {simplifyPolygon} from '@/lib/simplifyPolygon';
-import {polygonArea, shareInside} from '@/lib/geometry';
 import {mergeOutlines} from '@/lib/mergeAreas';
 import {cutOut, generateId, splitByPath} from '@/lib/splitPolygon';
-import {isDocked} from '@/lib/status';
 import {useSearchParams} from 'next/navigation';
 import {Suspense, useEffect, useMemo, useState} from 'react';
 import styles from './page.module.css';
@@ -57,10 +54,13 @@ export default function MapPage() {
 
 function MapEditor() {
   useLang();
-  const {state} = useMowerState();
-  const position = useMowerPosition() ?? state?.pose;
-  const {values: sensorValues} = useMowerSensors();
-  const docked = isDocked(state, sensorValues['om_v_charge']);
+  // only what the page needs of the mower's state and sensors: it isn't drawn again for every message that comes in
+  const live = useMowerPosition();
+  // a mower without position/json: robot_state's pose
+  const pose = useMowerStateValue((l) => (live ? null : (l.state?.pose ?? null)));
+  const position = live ?? pose ?? undefined;
+  const emergency = useMowerStateValue((l) => !!l.state?.emergency);
+  const docked = useDocked();
   const track = useMowerTrack();
   const liveMap = useMowerMap();
   const params = useMowerParams();
@@ -108,41 +108,6 @@ function MapEditor() {
   // the area settings this mower keeps, mow_around changes the plan
   const areaProps = useAreaProperties();
   const selectedArea = map?.areas.find((a) => a.id === selectedAreaId) ?? null;
-  // an active mowing or navigation area the selected one mostly lies in, the mower drives and mows that as a
-  // whole, whatever is set on the smaller one. the innermost one when areas are nested deeper
-  const enclosing = useMemo(() => {
-    const t = selectedArea?.properties.type;
-    if (!map || !selectedArea || (t !== 'mow' && t !== 'nav')) return undefined;
-    const size = polygonArea(selectedArea.outline);
-    return map.areas
-      .filter(
-        (o) =>
-          o.id !== selectedArea.id &&
-          o.properties.active !== false &&
-          (o.properties.type === 'mow' || o.properties.type === 'nav') &&
-          polygonArea(o.outline) > size &&
-          shareInside(selectedArea.outline, o.outline) > 0.5,
-      )
-      .sort((a, b) => polygonArea(a.outline) - polygonArea(b.outline))[0];
-  }, [map, selectedArea]);
-  const cutFromEnclosing = useMemo(
-    () => (enclosing && selectedArea ? cutOut(enclosing.outline, selectedArea.outline) : null),
-    [enclosing, selectedArea],
-  );
-  const applyCutFromEnclosing = () => {
-    if (!map || !selectedArea || !enclosing || !cutFromEnclosing) return;
-    const [a, b] = cutFromEnclosing;
-    const name = enclosing.properties.name;
-    // the first half keeps the id, schedules and pauses pick areas by it
-    const halves = [a, b].map((outline, i) => ({
-      ...enclosing,
-      id: i ? generateId() : enclosing.id,
-      outline,
-      properties: {...enclosing.properties, name: name && i ? `${name} 2` : name},
-    }));
-    remember();
-    setMap({...map, areas: map.areas.flatMap((x) => (x.id === enclosing.id ? halves : [x]))});
-  };
   const baseOutline = selectedArea ? (originals[selectedArea.id] ?? selectedArea.outline) : null;
   const simplified = useMemo(
     () =>
@@ -526,7 +491,7 @@ function MapEditor() {
                 viewKey="editor"
                 map={shownMap}
                 mower={position}
-                emergency={!!state?.emergency}
+                emergency={emergency}
                 track={viewJob ? undefined : track}
                 pastTrack={viewJob?.segments?.map((s) => ({
                   points: s.points.map(([x, y]) => ({x, y})),
@@ -714,8 +679,6 @@ function MapEditor() {
               {selectedArea && mode === 'idle' && (
                 <AreaCard
                   area={selectedArea}
-                  enclosing={enclosing}
-                  onCutOut={cutFromEnclosing && applyCutFromEnclosing}
                   showTools={simplifyCm === null}
                   confirmDelete={confirmDelete === selectedArea.id}
                   remember={remember}
@@ -763,6 +726,11 @@ function MapEditor() {
                       own: selectedArea.properties.planner ?? {},
                       passes: selectedArea.properties.outline_count,
                       planned: plan?.chosen?.perimeter_passes,
+                      range: {
+                        min: selectedArea.properties.angle_min,
+                        max: selectedArea.properties.angle_max,
+                        set: (min, max) => updateProperties({angle_min: min, angle_max: max}),
+                      },
                       set: (key, value) => {
                         const own = {...(selectedArea.properties.planner ?? {})};
                         if (value === undefined || value === null) delete own[key];

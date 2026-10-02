@@ -149,6 +149,20 @@ export interface BodyCheck {
   soft: string[];
 }
 
+// the places of the spots: the planner reports every pose of the path where the body sticks out (10 cm apart, a turn on
+// the spot dozens of times), what's within a mower's length of a place is that place. Each with the pose in the middle
+// of its spots, for drawing one body there, and what happens there
+const PLACE = 0.75; // m
+export function spotPlaces(spots: BodySpot[]): {spot: BodySpot; kinds: string[]}[] {
+  const places: {x: number; y: number; spots: BodySpot[]}[] = [];
+  for (const s of spots) {
+    const near = places.find((p) => Math.hypot(p.x - s.x, p.y - s.y) <= PLACE);
+    if (near) near.spots.push(s);
+    else places.push({x: s.x, y: s.y, spots: [s]});
+  }
+  return places.map((p) => ({spot: p.spots[p.spots.length >> 1], kinds: [...new Set(p.spots.map((s) => s.kind))]}));
+}
+
 // the plan of an area checked against the mower's body (planner.plan with report). null when the mower has no
 // MowBite Planner. A planner that doesn't check the body yet gives no spots
 export async function checkBody(req: PlanRequest): Promise<BodyCheck | null> {

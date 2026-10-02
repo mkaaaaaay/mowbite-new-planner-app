@@ -19,6 +19,15 @@ type Area = {
   passes?: number;
   // the outline passes in its plan (automatic: what the planner worked out for it)
   planned?: number;
+  // the directions its lanes keep to (rad, its angle_min and angle_max, both or neither)
+  range?: {min?: number; max?: number; set: (min: number | undefined, max: number | undefined) => void};
+};
+
+const DEG = Math.PI / 180;
+// degrees -180..180 for showing an angle
+const deg = (rad: number) => {
+  const d = Math.round(rad / DEG);
+  return ((((d + 180) % 360) + 360) % 360) - 180;
 };
 
 const PATTERNS = ['lanes', 'concentric', 'auto', 'crosshatch'];
@@ -302,6 +311,47 @@ export function PlannerSimple({area, toolWidth}: {area?: Area; toolWidth?: numbe
               },
             )}
           </label>
+        </Row>
+      )}
+
+      {area?.range && (
+        <Row
+          label={tr('Angle range')}
+          help={tr(
+            'The direction of the lanes stays between these two. When the angle turns further by itself after every mowing run, it swings back and forth between them. 0° and 180° give the same lanes.',
+          )}
+          note={
+            area.range.min !== undefined && area.range.max !== undefined
+              ? deg(area.range.min) === deg(area.range.max)
+                ? tr('The lanes always run at {from}°.', {from: deg(area.range.min)})
+                : tr('The lanes stay between {from}° and {to}°.', {from: deg(area.range.min), to: deg(area.range.max)})
+              : area.range.min !== undefined || area.range.max !== undefined
+                ? tr('Set both ends, one alone does nothing.')
+                : tr('No range: the lanes may run any way, an angle turning further goes round all 180°.')
+          }
+        >
+          <div className={local.inline}>
+            {(['min', 'max'] as const).map((end) => (
+              <label key={end} className={local.field}>
+                {end === 'min' ? tr('from') : tr('to')}
+                {numberField(
+                  'range' + end,
+                  area.range![end] !== undefined ? String(deg(area.range![end]!)) : '',
+                  '',
+                  (text) => {
+                    const d = parse(text);
+                    const v = d === null ? undefined : deg(d * DEG) * DEG;
+                    if (end === 'min') area.range!.set(v, area.range!.max);
+                    else area.range!.set(area.range!.min, v);
+                  },
+                )}
+                °
+              </label>
+            ))}
+            {(area.range.min !== undefined || area.range.max !== undefined) && (
+              <button onClick={() => area.range!.set(undefined, undefined)}>{tr('none')}</button>
+            )}
+          </div>
         </Row>
       )}
 

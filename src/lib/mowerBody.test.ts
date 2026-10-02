@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {bodyFrom, bodyShape, type PlannerSettings} from './mowerBody';
+import {bodyFrom, bodyShape, spotPlaces, type PlannerSettings} from './mowerBody';
 
 const settings = (values: Record<string, unknown>): PlannerSettings => ({
   settings: Object.fromEntries(
@@ -41,5 +41,19 @@ describe('mower body', () => {
     expect(north.blade.y).toBeCloseTo(0.17);
     expect(north.corners[0].x).toBeCloseTo(-0.2);
     expect(north.corners[0].y).toBeCloseTo(0.43);
+  });
+});
+
+describe('body spots', () => {
+  it('draws one body per place', () => {
+    // a turn on the spot reported 30 times, a loop corner over half a metre of path, a drive between parts further away
+    const spin = Array.from({length: 30}, (_, i) => ({x: 1, y: 1, yaw: i * 0.2, kind: 'spin'}));
+    const corner = Array.from({length: 6}, (_, i) => ({x: 1.2 + i * 0.1, y: 1, yaw: 0, kind: 'loop'}));
+    const transit = [{x: 5, y: 5, yaw: 1, kind: 'transit'}];
+    const places = spotPlaces([...spin, ...corner, ...transit]);
+    expect(places).toHaveLength(2);
+    expect(places[0].kinds).toEqual(['spin', 'loop']);
+    expect(places[1]).toEqual({spot: transit[0], kinds: ['transit']});
+    expect(spotPlaces([])).toEqual([]);
   });
 });
