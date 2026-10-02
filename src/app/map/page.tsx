@@ -38,7 +38,8 @@ import {checkMap} from '@/lib/mapCheck';
 import Problems from './Problems';
 import {BodyCheck} from './BodyCheck';
 import {AreaPlanner} from './AreaPlanner';
-import {useMowerBody, type BodySpot} from '@/lib/mowerBody';
+import {Fold} from './Fold';
+import {useMowerBody, usePlannerSettings, type BodySpot} from '@/lib/mowerBody';
 
 // useSearchParams needs a suspense boundary in a static export
 export default function MapPage() {
@@ -166,6 +167,7 @@ function MapEditor() {
   const [draggingPoint, setDraggingPoint] = useState(false);
   // the mower's body as the planner knows it, and where it would stick out in the selected area's plan
   const body = useMowerBody();
+  const plannerSettings = usePlannerSettings();
   const [bodySpots, setBodySpots] = useState<BodySpot[] | null>(null);
   const {toolWidth, angleOffset, offsetIsAbsolute, angleIncrement, shownArea, autoAngle, touchAngle, mismatch, realPlan, plan, stripes, planLength, planRequest} =
     useMowPlan({params, liveMap, shownMap, selectedAreaId, pastJobs, areaProps, showStripes, previewCorrection, draggingPoint});
@@ -483,8 +485,19 @@ function MapEditor() {
           {tr('Map')}
         </h1>
 
-        <div className={styles.editor}>
+        <div className={[styles.editor, selectedArea && mode === 'idle' ? styles.editing : ''].filter(Boolean).join(' ')}>
           <div className={styles.mapCol}>
+            {/* phones: undo and save on the map while an area is edited, the toolbar is further down then */}
+            {selectedArea && mode === 'idle' && dirty && !preview && (
+              <div className={styles.mapSave}>
+                <button className={styles.pillButton} onClick={undo} disabled={history.length === 0} aria-label={tr('Undo')}>
+                  ↶
+                </button>
+                <button className={[styles.pillButton, styles.saveButton, styles.unsaved].join(' ')} onClick={() => void handleSave()} disabled={saving}>
+                  {saving ? tr('saving…') : tr('Save map')}
+                </button>
+              </div>
+            )}
             {spot && (
               <div className={styles.spot}>
                 <span>{spot.msg || tr('Marked spot')}</span>
@@ -693,30 +706,32 @@ function MapEditor() {
               )}
 
               {selectedArea && mode === 'idle' && simplifyCm === null && selectedArea.properties.type === 'mow' && (
-                <MowSettings
-                  area={selectedArea}
-                  autoAngle={autoAngle}
-                  globalValue={globalValue}
-                  remember={remember}
-                  update={updateProperties}
-                  showStripes={showStripes}
-                  onToggleStripes={() => setShowStripes(!showStripes)}
-                  onAngleEdit={touchAngle}
-                  toolWidth={toolWidth}
-                  mismatch={mismatch}
-                  previewCorrection={previewCorrection}
-                  planFromMower={!!realPlan}
-                  planAngle={realPlan?.angle}
-                  planLength={shownArea?.properties.mowable === false || shownArea?.properties.active === false ? 0 : planLength}
-                  onPreviewCorrection={setPreviewCorrection}
-                  angle={{offset: angleOffset, offsetIsAbsolute, increment: angleIncrement}}
-                />
+                <Fold id="mow" title={tr('Mowing settings')}>
+                  <MowSettings
+                    area={selectedArea}
+                    autoAngle={autoAngle}
+                    globalValue={globalValue}
+                    remember={remember}
+                    update={updateProperties}
+                    showStripes={showStripes}
+                    onToggleStripes={() => setShowStripes(!showStripes)}
+                    onAngleEdit={touchAngle}
+                    toolWidth={toolWidth}
+                    mismatch={mismatch}
+                    previewCorrection={previewCorrection}
+                    planFromMower={!!realPlan}
+                    planAngle={realPlan?.angle}
+                    planLength={shownArea?.properties.mowable === false || shownArea?.properties.active === false ? 0 : planLength}
+                    onPreviewCorrection={setPreviewCorrection}
+                    angle={{offset: angleOffset, offsetIsAbsolute, increment: angleIncrement}}
+                  />
+                </Fold>
               )}
-              {selectedArea && mode === 'idle' && simplifyCm === null && selectedArea.properties.type === 'mow' && (
-                <AreaPlanner properties={selectedArea.properties} update={updateProperties} remember={remember} />
-              )}
-              {selectedArea && mode === 'idle' && simplifyCm === null && selectedArea.properties.type === 'mow' && body && realPlan && (
-                <BodyCheck request={planRequest} onSpots={setBodySpots} />
+              {selectedArea && mode === 'idle' && simplifyCm === null && selectedArea.properties.type === 'mow' && plannerSettings && (
+                <Fold id="planner" title={tr('Planner for this area')}>
+                  <AreaPlanner properties={selectedArea.properties} update={updateProperties} remember={remember} />
+                  {body && realPlan && <BodyCheck request={planRequest} onSpots={setBodySpots} />}
+                </Fold>
               )}
 
               {selectedArea && simplified && simplifyCm !== null && (
