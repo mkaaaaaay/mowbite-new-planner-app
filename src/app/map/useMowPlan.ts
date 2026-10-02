@@ -143,27 +143,36 @@ export function useMowPlan({
     return req;
   }, [stripesOn, planned, shownArea, shownMap, areaProps]);
   const planKey = planRequest ? JSON.stringify(planRequest) : '';
-  const [fromMower, setFromMower] = useState<{areaId: string | null; plan: MowPlan | null} | null>(null);
-  // not while a point is dragged, a new plan redrawn mid-drag makes it stutter
+  // the angle a plan is for: the mower's answer for another one has the stripes the wrong way
+  const angleKey =
+    planRequest && 'outline' in planRequest ? JSON.stringify([planRequest.angle, planRequest.angle_min, planRequest.angle_max]) : '';
+  const [fromMower, setFromMower] = useState<{areaId: string | null; key: string; angleKey: string; plan: MowPlan | null} | null>(
+    null,
+  );
+  // not while a point is dragged or the angle is moving: a new plan redrawn mid-drag makes it stutter, and every
+  // pause of the slider would queue up a plan on the mower (about a second each there)
   useEffect(() => {
-    if (!planKey || draggingPoint) return;
+    if (!planKey || draggingPoint || angleMoving) return;
     const areaId = selectedAreaId;
     let alive = true;
     // while points are typed or clicked only once it settles
     const t = setTimeout(() => {
       void mowerPlan(JSON.parse(planKey)).then(
-        (plan) => alive && setFromMower({areaId, plan}),
-        () => alive && setFromMower({areaId, plan: null}),
+        (plan) => alive && setFromMower({areaId, key: planKey, angleKey, plan}),
+        () => alive && setFromMower({areaId, key: planKey, angleKey, plan: null}),
       );
     }, 300);
     return () => {
       alive = false;
       clearTimeout(t);
     };
-  }, [planKey, selectedAreaId, draggingPoint]);
-  // the last answer for this area stays up while a newer one is on its way, so it doesn't flicker back to the estimate
-  // while the angle is moving the estimate follows right away, the mower's plan comes back once it stops
-  const realPlan = planKey && !angleMoving && fromMower?.areaId === selectedAreaId ? fromMower.plan : null;
+  }, [planKey, angleKey, selectedAreaId, draggingPoint, angleMoving]);
+  // while the angle is moving the estimate follows right away, and it stays until the mower's plan for that angle is
+  // there. Other changes (a point moved) keep the last answer for this area up while a newer one is on its way, so it
+  // doesn't flicker back to the estimate
+  const answered = fromMower?.areaId === selectedAreaId ? fromMower : null;
+  const realPlan =
+    planKey && !angleMoving && answered && (answered.key === planKey || answered.angleKey === angleKey) ? answered.plan : null;
   // the mower's own plan has the angle it really mows at, a leftover increment included, nothing to warn about then
   if (realPlan) mismatch = null;
 
