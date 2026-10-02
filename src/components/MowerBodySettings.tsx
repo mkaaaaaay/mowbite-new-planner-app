@@ -26,6 +26,8 @@ const LABELS: Record<BodySetting, string> = {
   blade_ahead: 'Blade ahead of the rear axle',
   blade_offset: 'Blade to the left of the middle',
   body_tolerance: 'Leeway past the edges',
+  // tighter, the inner wheel stands or turns backwards and scuffs the lawn: it turns on the spot there instead
+  min_turn_radius: 'Tightest curve radius',
 };
 
 type Styles = Record<string, string>;

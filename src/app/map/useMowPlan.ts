@@ -362,6 +362,7 @@ export function useMowPlan({
       turnTypes: Array.isArray(value('turn_types')) ? (value('turn_types') as string[]) : undefined,
       // (only where OpenMower's controller backs up where the plan does, the planner leaves it out otherwise)
       allowReverse: value('allow_reverse') === true && planner?.can_back_up === true,
+      minTurnRadius: num('min_turn_radius', 0),
       body:
         width > 0 && front + rear > 0
           ? {

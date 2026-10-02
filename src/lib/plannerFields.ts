@@ -221,7 +221,17 @@ export const FIELDS: Record<string, Field> = {
 };
 
 // shown in their own card (Mower sizes)
-export const BODY_KEYS = ['robot_width', 'robot_front', 'robot_rear', 'mower_width', 'blade_ahead', 'blade_offset', 'body_tolerance', 'edges'];
+export const BODY_KEYS = [
+  'robot_width',
+  'robot_front',
+  'robot_rear',
+  'mower_width',
+  'blade_ahead',
+  'blade_offset',
+  'body_tolerance',
+  'min_turn_radius',
+  'edges',
+];
 
 const DEG = 180 / Math.PI;
 

@@ -50,6 +50,7 @@ export interface PlannerEstimateInput {
   spacingMode?: string; // fixed, auto (the spacing is the one the planner picked or will try first), for chosen
   turnTypes?: string[]; // the kinds of turns allowed (u_turn, bulb, k_turn, detour, pivot)
   allowReverse?: boolean; // k-turns, which back up
+  minTurnRadius?: number; // m, no arc of a turn tighter than this (it turns on the spot there)
 }
 
 export interface PlannerEstimate extends MowPlan {
@@ -1326,7 +1327,7 @@ function turnShape(name: string, d: number, dx: number, r: number, step: number)
 
 // whether one of the turns (types, preferred first, larger radii first) gets from exit into a lane starting at entry,
 // the centre in the room and the body where it may be, like the planner's plan_turn
-function turnFits(exit: Pose, entry: Point, radius: number, step: number, types: string[], room: Space, body: Body): boolean {
+function turnFits(exit: Pose, entry: Point, radius: number, step: number, types: string[], room: Space, body: Body, least = 0): boolean {
   const c = Math.cos(exit.yaw);
   const s = Math.sin(exit.yaw);
   const vx = entry.x - exit.x;
@@ -1338,7 +1339,7 @@ function turnFits(exit: Pose, entry: Point, radius: number, step: number, types:
   if (d < 1e-6) return false;
   const radii: number[] = [];
   for (const r of [radius, 0.75 * radius, 0.5 * radius, 0.5 * d]) {
-    if (r > 1e-3 && r <= radius + 1e-9 && radii.every((o) => Math.abs(r - o) > 1e-3)) radii.push(r);
+    if (r > Math.max(1e-3, least - 1e-9) && r <= radius + 1e-9 && radii.every((o) => Math.abs(r - o) > 1e-3)) radii.push(r);
   }
   radii.sort((p, q) => q - p);
   for (const r of radii) {
@@ -1612,9 +1613,9 @@ export function plannerEstimate(input: PlannerEstimateInput): PlannerEstimate | 
           if (level > 1e-6 && level < most) {
             const exit = {x: pos.x, y: pos.y, yaw: heading};
             const gentle = turnTypes.filter((t) => t !== 'detour' && t !== 'pivot');
-            if (!turnFits(exit, pa, r, step, gentle, turnRoom, body)) {
+            if (!turnFits(exit, pa, r, step, gentle, turnRoom, body, input.minTurnRadius ?? 0)) {
               const start = {x: pa.x + level * ux, y: pa.y + level * uy};
-              if (turnFits(exit, start, r, step, gentle, turnRoom, body)) pa = start;
+              if (turnFits(exit, start, r, step, gentle, turnRoom, body, input.minTurnRadius ?? 0)) pa = start;
             }
           }
         }
