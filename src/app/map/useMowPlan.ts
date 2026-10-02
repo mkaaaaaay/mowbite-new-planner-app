@@ -360,7 +360,8 @@ export function useMowPlan({
       cornerRadius: num('perimeter_corner_radius', 0.15),
       simplifyTolerance: num('simplify_tolerance', 0.01),
       turnTypes: Array.isArray(value('turn_types')) ? (value('turn_types') as string[]) : undefined,
-      allowReverse: value('allow_reverse') === true,
+      // (only where OpenMower's controller backs up where the plan does, the planner leaves it out otherwise)
+      allowReverse: value('allow_reverse') === true && planner?.can_back_up === true,
       body:
         width > 0 && front + rear > 0
           ? {

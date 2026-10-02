@@ -50,6 +50,7 @@ export function PlannerField({
   styles,
   placeholder,
   globalLabel,
+  unavailable,
 }: {
   name: string;
   setting: PlannerSetting;
@@ -60,6 +61,8 @@ export function PlannerField({
   placeholder?: string;
   // a choice field per area: the extra choice "as set for all areas"
   globalLabel?: string;
+  // why it can't be used on this mower: shown greyed out with this under it
+  unavailable?: string | null;
 }) {
   const field: Field | undefined = FIELDS[name];
   const label = (
@@ -111,11 +114,24 @@ export function PlannerField({
     );
   }
   if (setting.type === 'boolean') {
-    return (
+    const check = (
       <label className={styles.check}>
-        <input type="checkbox" checked={value === 'true'} onChange={(e) => onChange(e.target.checked ? 'true' : 'false')} />
+        <input
+          type="checkbox"
+          checked={value === 'true'}
+          disabled={!!unavailable}
+          onChange={(e) => onChange(e.target.checked ? 'true' : 'false')}
+        />
         {label}
       </label>
+    );
+    return unavailable ? (
+      <div>
+        {check}
+        <p className={styles.dim}>{unavailable}</p>
+      </div>
+    ) : (
+      check
     );
   }
   // a number the planner can work out itself (perimeter_passes -1): a button for that next to it
@@ -250,6 +266,11 @@ export function PlannerSettings({styles}: {styles: Styles}) {
 
   // choices and lists take the whole row
   const wide = (k: string) => all[k].type === 'list' || (all[k].type === 'string' && !!all[k].choices?.length);
+  // backing up needs OpenMower's controller to back up where the plan does, the planner leaves it out otherwise
+  const unavailable = (k: string) =>
+    k === 'allow_reverse' && settings.can_back_up !== true
+      ? tr("This mower's OpenMower doesn't back up along the plan yet (back_up_with_plan), the planner leaves it out.")
+      : null;
   const field = (k: string) => (
     <div key={k} className={[wide(k) ? local.wide : '', all[k].stored ? local.changed : ''].filter(Boolean).join(' ') || undefined}>
       <PlannerField
@@ -257,6 +278,7 @@ export function PlannerSettings({styles}: {styles: Styles}) {
         setting={all[k]}
         value={shown[k] ?? ''}
         styles={styles}
+        unavailable={unavailable(k)}
         onChange={(v) => {
           setForm({...form, [k]: v});
           setState({});

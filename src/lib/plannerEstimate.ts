@@ -1460,7 +1460,8 @@ function prepareNow(input: PlannerEstimateInput): Prepared | null {
     const cut = partsOf(clip(laneRegion, opened, diff)).filter((p) => partArea(p) >= r * r);
     if (cut.length) {
       // bits left between narrow parts too small for more than a few lanes go to the loops as well
-      const wide = pieces(clip(laneRegion, cut.flat(), diff), (4 * r) ** 2);
+      // (no hairline spikes left, like the planner opening it by a hair: the first row of lanes would go by one)
+      const wide = pieces(ClipperLib.Clipper.CleanPolygons(clip(laneRegion, cut.flat(), diff), 1.5), (4 * r) ** 2);
       const keepOff = wide.length ? grow(wide, half, round) : null;
       while (levels.length < MAX_ROWS) {
         let level = inset(free, first + levels.length * spacing);

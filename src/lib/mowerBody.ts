@@ -38,6 +38,8 @@ export interface PlannerSettings {
   settings: Record<string, PlannerSetting>;
   own_angle?: boolean;
   file?: string | null;
+  // OpenMower's controller backs up where the plan does (its back_up_with_plan): only then allow_reverse counts
+  can_back_up?: boolean;
 }
 
 // the settings the app shows as the mower's sizes, in this order
