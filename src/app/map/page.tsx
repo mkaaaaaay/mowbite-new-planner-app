@@ -621,7 +621,7 @@ function MapEditor() {
                       with the area */}
                   {plannerSettings && (
                     <Fold id="plannerAll" title={tr('Planner for all areas')}>
-                      <PlannerSimple toolWidth={toolWidth} />
+                      <PlannerSimple toolWidth={toolWidth} omIncrement={angleIncrement} />
                       <details className={simpleStyles.expert}>
                         <summary>{tr('All settings (expert)')}</summary>
                         <div className={styles.foldCards}>
@@ -722,6 +722,7 @@ function MapEditor() {
                 <Fold id="planner" title={tr('Planner for this area')}>
                   <PlannerSimple
                     toolWidth={toolWidth}
+                    omIncrement={angleIncrement}
                     area={{
                       own: selectedArea.properties.planner ?? {},
                       passes: selectedArea.properties.outline_count,

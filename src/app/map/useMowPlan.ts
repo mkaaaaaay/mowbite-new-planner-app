@@ -35,9 +35,6 @@ const mapVersion = (map: object | null) => {
 };
 
 // planner: asked of the MowBite Planner (planner.plan), which says what it planned with
-// auto: what the planner took last time for the area, lanes until it planned it once
-const autoPattern = (pattern: string, picked: string | undefined) => (pattern === 'auto' ? (picked ?? 'lanes') : pattern);
-
 type PlanJob = {areaId: string | null; key: string; cacheKey: string; angleKey: string; planner: boolean};
 // what the planner last planned an area with (the lane spacing it picked), for the estimate until it's asked again
 const CHOSEN = new Map<string, PlanChosen>();
@@ -103,19 +100,27 @@ export function useMowPlan({
   const stripesOn = showStripes || angleEditing;
   const autoAngle = shownArea ? autoMowAngle(shownArea.outline) : 0;
 
-  // the angle the planner actually gets, see MowingBehavior.cpp
+  // the angle mower_logic asks the planner for, see MowingBehavior.cpp: the area's own (or its outline's) and
+  // mow_angle_offset
+  const askedAngle = (area: {properties: {angle?: number}; outline: Point[]}) =>
+    offsetIsAbsolute ? angleOffset * DEG : (area.properties.angle ?? autoMowAngle(area.outline)) + angleOffset * DEG;
+  // the angle the planner actually gets, within the area's range
   const plannedAngle = (area: {properties: {angle?: number; angle_min?: number; angle_max?: number}; outline: Point[]}) =>
-    angleInRange(
-      offsetIsAbsolute ? angleOffset * DEG : (area.properties.angle ?? autoMowAngle(area.outline)) + angleOffset * DEG,
-      area.properties.angle_min,
-      area.properties.angle_max,
-    );
+    angleInRange(askedAngle(area), area.properties.angle_min, area.properties.angle_max);
+  // the MowBite Planner turns the lanes further after finished mows: by the area's step or the one for all areas, as
+  // often as it counted (angle_steps)
+  const turnStep = (area: MapArea | null) => {
+    const v = plannerValue(area, 'angle_increment');
+    return typeof v === 'number' ? v : 0;
+  };
 
   // check against the last real mow here, a leftover angle increment in checkpoint.bag isn't
   // published anywhere and rotates everything. saved area, not the edited one
   const savedArea = liveMap?.areas.find((a) => a.id === selectedAreaId);
+  // turning further on purpose, the last mow went another way than the next one does
+  const turning = !!planner && ((planner.angle_steps ?? 0) > 0 || turnStep(savedArea ?? null) !== 0);
   let mismatch: AngleMismatch | null = null;
-  if (savedArea?.properties.type === 'mow' && pastJobs) {
+  if (savedArea?.properties.type === 'mow' && pastJobs && !turning) {
     const passes = savedArea.properties.outline_count ?? numParam(params, PARAM.outlineCount) ?? 0;
     const margin = passes * (toolWidth ?? 0.2) + 0.2;
     // newest mowing stretch first, a job that got interrupted can resume with different settings
@@ -354,14 +359,17 @@ export function useMowPlan({
         str('edges', 'recorded') === 'hard' && width > 0 ? Math.max(offset, width / 2 - Math.abs(num('blade_offset', 0))) : offset,
       passes: sent('perimeter_passes', p.outline_count, 'outline_count'),
       overlapPasses: sent('lane_overlap_passes', p.outline_overlap_count, 'outline_overlap_count'),
-      angle: byPlanner ? (ownAngle ?? (typeof own.angle_strategy === 'string' ? null : globalAngle)) : effectiveAngle,
+      // (the planner keeps it within the range after adding its offset and what it turned further)
+      angle: byPlanner
+        ? (ownAngle ?? (typeof own.angle_strategy === 'string' ? null : globalAngle))
+        : askedAngle(shownArea) + (mismatch ? previewCorrection : 0) * DEG,
       strategy: str('angle_strategy', 'longest_edge'),
-      angleOffset: num('angle_offset', 0),
+      angleOffset: num('angle_offset', 0) + (planner.angle_steps ?? 0) * turnStep(shownArea),
       angleMin: typeof value('angle_min') === 'number' ? (value('angle_min') as number) : p.angle_min,
       angleMax: typeof value('angle_max') === 'number' ? (value('angle_max') as number) : p.angle_max,
       angleStep: num('angle_step', (5 * Math.PI) / 180),
       // auto: what the planner took last time for this area, lanes until it planned it once
-      fillPattern: autoPattern(str('fill_pattern', 'lanes'), picked?.fill_pattern),
+      fillPattern: str('fill_pattern', 'lanes'),
       crosshatchAngle: num('crosshatch_angle', Math.PI / 2),
       minLaneLength: num('min_lane_length', 0.1),
       narrowParts: str('narrow_parts', 'lanes'),

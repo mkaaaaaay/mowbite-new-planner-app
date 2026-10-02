@@ -38,6 +38,8 @@ export const RPC = {
   plannerSettingsSet: 'planner.settings.set',
   // a plan straight from the MowBite Planner, with report: true where the mower's body would stick out
   plannerPlan: 'planner.plan',
+  // the angle turned further after finished mows (angle_increment) back to 0, answers like planner.settings
+  plannerAngleReset: 'planner.angle.reset',
 } as const;
 
 export const ACTION = {

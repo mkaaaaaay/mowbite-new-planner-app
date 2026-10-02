@@ -48,9 +48,9 @@ export const FIELDS: Record<string, Field> = {
   },
   fill_pattern: {
     label: 'Pattern',
-    help: 'Inside the outline passes: parallel lanes, lanes and then lanes across them, rings further and further in, or the planner decides: lanes or rings, whichever turns tightly less (tighter than the tightest curve, on the spot too) and leaves less unmowed.',
+    help: 'Inside the outline passes: parallel lanes, lanes and then lanes across them, or rings further and further in.',
     group: 'pattern',
-    choices: {lanes: 'Lanes', crosshatch: 'Crosshatch', concentric: 'Rings', auto: 'Planner decides'},
+    choices: {lanes: 'Lanes', crosshatch: 'Crosshatch', concentric: 'Rings'},
     area: true,
   },
   narrow_parts: {
@@ -97,6 +97,20 @@ export const FIELDS: Record<string, Field> = {
     unit: 'deg',
     step: 1,
     advanced: true,
+  },
+  angle_increment: {
+    label: 'Turn further by',
+    help: "After finished mowing runs the lanes turn this much further, so the wheels don't wear tracks into the lawn. Within an area's direction range they swing back and forth, without one they go round all 180°. 0: off.",
+    group: 'angle',
+    unit: 'deg',
+    step: 1,
+    area: true,
+  },
+  angle_increment_every: {
+    label: 'After every nth mowing run',
+    help: 'How many finished mowing runs it takes for the next turn.',
+    group: 'angle',
+    step: 1,
   },
   angle_min: {label: 'Direction from', help: 'The direction of the lanes stays between these two, set both or neither.', group: 'angle', unit: 'deg', step: 1, advanced: true},
   angle_max: {label: 'Direction to', help: 'The direction of the lanes stays between these two, set both or neither.', group: 'angle', unit: 'deg', step: 1, advanced: true},
@@ -223,6 +237,10 @@ export const FIELDS: Record<string, Field> = {
 // settings a planner may still report that the app leaves out: the planner of the next version drops them again (and
 // everything stored with them)
 export const DROPPED = ['mode'];
+// choices not offered any more, though a planner from before still has them
+export const DROPPED_CHOICES: Record<string, string[]> = {fill_pattern: ['auto']};
+// counted by the planner itself, shown with the angle turned further (simple menu), not in the lists
+export const COUNTED = ['angle_steps'];
 
 // shown in their own card (Mower sizes)
 export const BODY_KEYS = [

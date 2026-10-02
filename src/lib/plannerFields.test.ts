@@ -22,6 +22,7 @@ describe('planner fields', () => {
       'fill_pattern',
       'narrow_parts',
       'angle_strategy',
+      'angle_increment',
       'perimeter_order',
       'turn_radius',
       'route_order',

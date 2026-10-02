@@ -40,6 +40,11 @@ export interface PlannerSettings {
   file?: string | null;
   // OpenMower's controller backs up where the plan does (its back_up_with_plan): only then allow_reverse counts
   can_back_up?: boolean;
+  // the angle turned further after finished mows: steps so far (each angle_increment, an area's own or the one for
+  // all), finished mows since the last step, and the steps with the one for all areas (rad)
+  angle_steps?: number;
+  angle_mows?: number;
+  angle_turned?: number;
 }
 
 // the settings the app shows as the mower's sizes, in this order
@@ -93,6 +98,13 @@ export function loadPlannerSettings(force = false): Promise<PlannerSettings | nu
 // planner.settings
 export async function savePlannerSettings(values: Record<string, unknown>): Promise<PlannerSettings> {
   const s = await callRpc<PlannerSettings>(RPC.plannerSettingsSet, values, 15000);
+  set(s);
+  return s;
+}
+
+// the angle turned further back to 0 (planner.angle.reset), the next finished mow counts from there
+export async function resetPlannerAngle(): Promise<PlannerSettings> {
+  const s = await callRpc<PlannerSettings>(RPC.plannerAngleReset, {}, 15000);
   set(s);
   return s;
 }

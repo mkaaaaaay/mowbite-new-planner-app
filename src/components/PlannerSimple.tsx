@@ -1,7 +1,7 @@
 'use client';
 
 import {tr} from '@/lib/i18n';
-import {savePlannerSettings, usePlannerSettings, type PlannerSetting} from '@/lib/mowerBody';
+import {resetPlannerAngle, savePlannerSettings, usePlannerSettings, type PlannerSetting} from '@/lib/mowerBody';
 import {RpcError} from '@/lib/rpc';
 import {useState} from 'react';
 import InfoTip from './InfoTip';
@@ -29,9 +29,11 @@ const deg = (rad: number) => {
   const d = Math.round(rad / DEG);
   return ((((d + 180) % 360) + 360) % 360) - 180;
 };
+// degrees to a tenth, for a step
+const degrees = (rad: number) => Math.round((rad / DEG) * 10) / 10;
 
-const PATTERNS = ['lanes', 'concentric', 'auto', 'crosshatch'];
-const PATTERN_LABELS: Record<string, string> = {lanes: 'Lanes', concentric: 'Rings', auto: 'Planner decides', crosshatch: 'Crosshatch'};
+const PATTERNS = ['lanes', 'concentric', 'crosshatch'];
+const PATTERN_LABELS: Record<string, string> = {lanes: 'Lanes', concentric: 'Rings', crosshatch: 'Crosshatch'};
 
 function Choice({
   options,
@@ -104,11 +106,11 @@ function edgeNote(edges: unknown, strip: number | undefined): string | null {
 const PATTERN_NOTES: Record<string, string> = {
   lanes: 'Straight lanes side by side, there and back: the quickest, with even stripes.',
   concentric: 'Rounds from the outside in: few turns, but a lot of tight turning in the corners.',
-  auto: 'The planner works out lanes and rings and takes the better one overall: a short way, little tight turning, little left standing.',
   crosshatch: 'Lanes, then the same again across them: twice as long, very thorough.',
 };
 
-export function PlannerSimple({area, toolWidth}: {area?: Area; toolWidth?: number}) {
+// omIncrement: OpenMower's own mow_angle_increment (degrees), it adds up with the planner's turning further
+export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; toolWidth?: number; omIncrement?: number}) {
   const planner = usePlannerSettings();
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [state, setState] = useState<{busy?: boolean; error?: string}>({});
@@ -164,6 +166,21 @@ export function PlannerSimple({area, toolWidth}: {area?: Area; toolWidth?: numbe
   const passesAuto = autoPasses !== undefined && passes === autoPasses;
   const passesShown = area && area.own.perimeter_passes === undefined ? (area.passes ?? global('perimeter_passes')) : passes;
   const least = value('min_turn_radius');
+  // the angle turned further after finished mows: by the area's own step or the one for all areas, every nth mow
+  const stepOf = (v: unknown) => (typeof v === 'number' ? v : 0);
+  const step = stepOf(effective('angle_increment'));
+  const every = typeof global('angle_increment_every') === 'number' ? (global('angle_increment_every') as number) : 1;
+  const steps = planner.angle_steps ?? 0;
+  const mows = planner.angle_mows ?? 0;
+  const resetAngle = async () => {
+    setState({busy: true});
+    try {
+      await resetPlannerAngle();
+      setState({});
+    } catch (e) {
+      setState({error: e instanceof RpcError && e.code !== 'timeout' ? e.message : tr('The mower did not answer.')});
+    }
+  };
   // how far in from the lines the blade's edge stays on the first outline pass (the planner's blade_loop_offset less
   // half the blade): perimeter_offset, by default half the blade (it reaches the lines), with hard edges at least half
   // the body's width less the blade's offset
@@ -311,6 +328,61 @@ export function PlannerSimple({area, toolWidth}: {area?: Area; toolWidth?: numbe
               },
             )}
           </label>
+        </Row>
+      )}
+
+      {has('angle_increment') && (
+        <Row
+          label={tr('Turn the angle further')}
+          help={tr(
+            "So the wheels don't wear tracks into the lawn: after finished mowing runs the lanes run a little turned each time. Within an area's angle range they swing back and forth between its ends, without one they go round all 180°.",
+          )}
+          note={
+            !step
+              ? tr('Off: the lanes run the same way every time.')
+              : (every > 1
+                  ? tr('After every {n}th finished mowing run the lanes turn {deg}° further.', {n: every, deg: degrees(step)})
+                  : tr('After every finished mowing run the lanes turn {deg}° further.', {deg: degrees(step)})) +
+                (steps > 0 ? ' ' + tr('So far {steps} times, {deg}° in all.', {steps, deg: degrees(steps * step)}) : '')
+          }
+        >
+          <div className={local.inline}>
+            <label className={local.field}>
+              {tr('by')}
+              {numberField(
+                'turn',
+                area && area.own.angle_increment === undefined ? '' : String(degrees(step)),
+                area ? String(degrees(stepOf(global('angle_increment')))) : '0',
+                (text) => {
+                  const d = parse(text);
+                  void save('angle_increment', d === null ? (area ? undefined : 0) : Math.min(180, Math.max(0, d)) * DEG);
+                },
+              )}
+              °
+            </label>
+            {!area && has('angle_increment_every') && (
+              <label className={local.field}>
+                {tr('after every')}
+                {numberField('every', String(every), '1', (text) => {
+                  const n = parse(text);
+                  void save('angle_increment_every', n === null ? undefined : Math.max(1, Math.round(n)));
+                })}
+                {tr('th mowing run')}
+              </label>
+            )}
+            {!area && steps + mows > 0 && (
+              <button disabled={state.busy} onClick={() => void resetAngle()}>
+                {tr('back to 0°')}
+              </button>
+            )}
+          </div>
+          {!area && !!omIncrement && (
+            <span className={local.error}>
+              {tr('OpenMower turns the angle further as well (mow_angle_increment {deg}°), the two add up. Set it to 0 in mower_params.yaml.', {
+                deg: omIncrement,
+              })}
+            </span>
+          )}
         </Row>
       )}
 

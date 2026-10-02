@@ -2,7 +2,7 @@
 
 import {tr} from '@/lib/i18n';
 import {loadPlannerSettings, savePlannerSettings, usePlannerSettings, type PlannerSetting} from '@/lib/mowerBody';
-import {BODY_KEYS, DROPPED, FIELDS, fromInput, GROUPS, toInput, type Field, type Group} from '@/lib/plannerFields';
+import {BODY_KEYS, COUNTED, DROPPED, DROPPED_CHOICES, FIELDS, fromInput, GROUPS, toInput, type Field, type Group} from '@/lib/plannerFields';
 import {RpcError} from '@/lib/rpc';
 import {useEffect, useState} from 'react';
 import InfoTip from './InfoTip';
@@ -75,7 +75,7 @@ export function PlannerField({
       {field?.help && <InfoTip>{tr(field.help)}</InfoTip>}
     </span>
   );
-  const choices = setting.choices ?? [];
+  const choices = (setting.choices ?? []).filter((c) => !DROPPED_CHOICES[name]?.includes(c));
   if (setting.type === 'list') {
     const on = Array.isArray(value) ? value : [];
     return (
@@ -185,34 +185,6 @@ export function turnRadiusWarning(all: Record<string, PlannerSetting>, radius: u
   return tr('Tighter than the tightest curve radius ({min} m): the planner takes {min} m.', {min: toInput(FIELDS.turn_radius, least)});
 }
 
-// lane spacing and outline passes both worked out by the planner, as one switch
-export function PlannerDecides({
-  settings,
-  on,
-  onChange,
-  styles,
-}: {
-  settings: Record<string, PlannerSetting>;
-  on: boolean;
-  onChange: (on: boolean) => void;
-  styles: Styles;
-}) {
-  if (!settings.lane_spacing_mode?.settable || settings.perimeter_passes?.auto_value === undefined) return null;
-  return (
-    <label className={[styles.toggle ?? styles.check, styles.toggleLong].filter(Boolean).join(' ')}>
-      <input type="checkbox" checked={on} onChange={(e) => onChange(e.target.checked)} />
-      <span>
-        {tr('The planner decides')}
-        <InfoTip>
-          {tr(
-            'Lane spacing and outline passes worked out by the planner: the widest spacing that leaves nothing unmowed, and as many passes as the turns at the lane ends need. The map shows what it picked.',
-          )}
-        </InfoTip>
-      </span>
-    </label>
-  );
-}
-
 export function PlannerSettings({styles}: {styles: Styles}) {
   const settings = usePlannerSettings();
   // only what was changed here, the rest shows what the planner has
@@ -236,7 +208,7 @@ export function PlannerSettings({styles}: {styles: Styles}) {
   const all = settings.settings;
   const shown = {...formFrom(all), ...form};
   const keys = Object.keys(all).filter((k) => !BODY_KEYS.includes(k) && !DROPPED.includes(k) && all[k].settable);
-  const fixed = Object.keys(all).filter((k) => !all[k].settable);
+  const fixed = Object.keys(all).filter((k) => !all[k].settable && !COUNTED.includes(k));
   const group = (k: string): Group => FIELDS[k]?.group ?? 'fine';
   const advanced = (k: string) => !FIELDS[k] || !!FIELDS[k].advanced;
 
@@ -319,19 +291,6 @@ export function PlannerSettings({styles}: {styles: Styles}) {
           "How the MowBite Planner on the mower plans every area. An area can set some of them for itself in its mowing settings. Lane spacing, outline passes and offset come from OpenMower's mowing settings.",
         )}
       </p>
-      <PlannerDecides
-        settings={all}
-        styles={styles}
-        on={shown.lane_spacing_mode === 'auto' && shown.perimeter_passes === String(all.perimeter_passes?.auto_value)}
-        onChange={(on) => {
-          setForm({
-            ...form,
-            lane_spacing_mode: on ? 'auto' : 'fixed',
-            perimeter_passes: on ? String(all.perimeter_passes.auto_value) : '',
-          });
-          setState({});
-        }}
-      />
       {settings.own_angle && (
         <p className={styles.error}>
           {tr("A direction is set here: it wins over the areas' mow angle, but for areas with an angle of their own.")}
