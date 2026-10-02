@@ -211,7 +211,9 @@ export default function MowSettings({
             {planChosen
               ? ` (${tr('{n} cm apart', {n: Math.round(planChosen.lane_spacing * 1000) / 10})}${
                   planChosen.mode === 'auto' ? `, ${tr('picked by the planner')}` : ''
-                }, ${tr('{n} outline passes', {n: planChosen.perimeter_passes})})`
+                }, ${tr('{n} outline passes', {n: planChosen.perimeter_passes})}${
+                  planChosen.fill_pattern === 'concentric' ? `, ${tr('rings')}` : ''
+                })`
               : toolWidth
                 ? ` (${tr('{n} cm apart', {n: Math.round(toolWidth * 100)})})`
                 : ''}

@@ -36,6 +36,8 @@ export interface PlanChosen {
   lane_spacing: number; // m
   perimeter_passes: number;
   mode: string; // fixed, auto
+  // lanes or concentric, what the planner took with fill_pattern auto (a planner from before doesn't say)
+  fill_pattern?: string;
 }
 
 // clipper works in integers, this is 0.01 mm

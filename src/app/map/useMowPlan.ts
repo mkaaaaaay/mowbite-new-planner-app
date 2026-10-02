@@ -346,7 +346,8 @@ export function useMowPlan({
       angleMin: typeof value('angle_min') === 'number' ? (value('angle_min') as number) : p.angle_min,
       angleMax: typeof value('angle_max') === 'number' ? (value('angle_max') as number) : p.angle_max,
       angleStep: num('angle_step', (5 * Math.PI) / 180),
-      fillPattern: str('fill_pattern', 'lanes'),
+      // auto: what the planner took last time for this area, lanes until it planned it once
+      fillPattern: str('fill_pattern', 'lanes') === 'auto' ? (picked?.fill_pattern ?? 'lanes') : str('fill_pattern', 'lanes'),
       crosshatchAngle: num('crosshatch_angle', Math.PI / 2),
       minLaneLength: num('min_lane_length', 0.1),
       narrowParts: str('narrow_parts', 'lanes'),
