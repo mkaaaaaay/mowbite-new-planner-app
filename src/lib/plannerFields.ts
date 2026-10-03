@@ -104,7 +104,6 @@ export const FIELDS: Record<string, Field> = {
     group: 'angle',
     unit: 'deg',
     step: 1,
-    area: true,
   },
   angle_increment_every: {
     label: 'After every nth mowing run',

@@ -1,5 +1,6 @@
 import InfoTip from '@/components/InfoTip';
 import {useAreaProperties} from '@/lib/areaProps';
+import {usePlannerSettings} from '@/lib/mowerBody';
 import {tr} from '@/lib/i18n';
 import {useState} from 'react';
 import {duration} from '@/lib/dates';
@@ -138,6 +139,21 @@ export default function MowSettings({
     </label>
   );
 
+  // with the MowBite Planner: the range (it keeps it, whatever the map service says) and turning further after mows,
+  // the area's own step or the one for all areas
+  const planner = usePlannerSettings();
+  const ranged = supported.has('angle_min') || !!planner;
+  const turning = !!planner?.settings.angle_increment?.settable;
+  const allStep = typeof planner?.settings.angle_increment?.value === 'number' ? (planner.settings.angle_increment.value as number) : 0;
+  const ownStep = typeof p.planner?.angle_increment === 'number' ? (p.planner.angle_increment as number) : undefined;
+  const setStep = (deg: number | undefined) => {
+    const own = {...(p.planner ?? {})};
+    if (deg === undefined) delete own.angle_increment;
+    else own.angle_increment = Math.min(180, Math.max(0, deg)) * DEG;
+    update({planner: Object.keys(own).length ? own : undefined}, false);
+  };
+  const tenth = (rad: number) => Math.round((rad / DEG) * 10) / 10;
+
   return (
     <div className={styles.mowSettings}>
       <span className={styles.cardTitle}>{tr('Mowing settings')}</span>
@@ -182,13 +198,13 @@ export default function MowSettings({
           {tr('Auto')}
         </button>
       </div>
-      {supported.has('angle_min') &&
+      {ranged &&
         (['angle_min', 'angle_max'] as const).map((key) => (
         <label key={key}>
           <span>
             {tr(key === 'angle_min' ? 'Min. angle (°)' : 'Max. angle (°)')}
             <InfoTip>
-              {tr('Keeps the stripes between these two directions, 0° and 180° give the same lanes (only started from the other side). When the mower turns the angle further after every full mow (mow_angle_increment), it turns back at the ends. Handy for narrow areas. Same value twice = fixed angle, min above max = range across 180°.')}
+              {tr('Keeps the stripes between these two directions, 0° and 180° give the same lanes (only started from the other side). When the angle turns further after mows, it turns back at the ends. Handy for narrow areas. Same value twice = fixed angle, min above max = range across 180°.')}
             </InfoTip>
           </span>
           <input
@@ -205,6 +221,29 @@ export default function MowSettings({
           />
         </label>
       ))}
+      {turning && (
+        <label>
+          <span>
+            {tr('Turn further (°)')}
+            <InfoTip>
+              {tr(
+                "After finished mows the stripes turn this much further, so the wheels don't wear tracks into the lawn. Within the range above they swing back and forth. Empty: like all areas, how often is set there (planner for all areas).",
+              )}
+            </InfoTip>
+          </span>
+          <input
+            key={area.id}
+            type="number"
+            step={1}
+            min={0}
+            max={180}
+            value={ownStep !== undefined ? tenth(ownStep) : ''}
+            placeholder={allStep ? tr('like all areas: {deg}°', {deg: tenth(allStep)}) : tr('like all areas: off')}
+            onFocus={remember}
+            onChange={(e) => setStep(e.target.value.trim() === '' ? undefined : Number(e.target.value))}
+          />
+        </label>
+      )}
       {area.properties.active === false ? (
         <p className={styles.dim}>{tr('No mowing plan, this area is inactive.')}</p>
       ) : area.properties.mowable === false ? (

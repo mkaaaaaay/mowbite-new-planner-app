@@ -19,16 +19,9 @@ type Area = {
   passes?: number;
   // the outline passes in its plan (automatic: what the planner worked out for it)
   planned?: number;
-  // the directions its lanes keep to (rad, its angle_min and angle_max, both or neither)
-  range?: {min?: number; max?: number; set: (min: number | undefined, max: number | undefined) => void};
 };
 
 const DEG = Math.PI / 180;
-// degrees -180..180 for showing an angle
-const deg = (rad: number) => {
-  const d = Math.round(rad / DEG);
-  return ((((d + 180) % 360) + 360) % 360) - 180;
-};
 // degrees to a tenth, for a step
 const degrees = (rad: number) => Math.round((rad / DEG) * 10) / 10;
 
@@ -166,9 +159,8 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
   const passesAuto = autoPasses !== undefined && passes === autoPasses;
   const passesShown = area && area.own.perimeter_passes === undefined ? (area.passes ?? global('perimeter_passes')) : passes;
   const least = value('min_turn_radius');
-  // the angle turned further after finished mows: by the area's own step or the one for all areas, every nth mow
-  const stepOf = (v: unknown) => (typeof v === 'number' ? v : 0);
-  const step = stepOf(effective('angle_increment'));
+  // the angle turned further after finished mows: by this step every nth mow (an area's own step: its mowing settings)
+  const step = typeof global('angle_increment') === 'number' ? (global('angle_increment') as number) : 0;
   const every = typeof global('angle_increment_every') === 'number' ? (global('angle_increment_every') as number) : 1;
   const steps = planner.angle_steps ?? 0;
   const mows = planner.angle_mows ?? 0;
@@ -331,7 +323,8 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
         </Row>
       )}
 
-      {has('angle_increment') && (
+      {/* an area's own step is with its angle, in its mowing settings */}
+      {!area && has('angle_increment') && (
         <Row
           label={tr('Turn the angle further')}
           help={tr(
@@ -351,16 +344,16 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
               {tr('by')}
               {numberField(
                 'turn',
-                area && area.own.angle_increment === undefined ? '' : String(degrees(step)),
-                area ? String(degrees(stepOf(global('angle_increment')))) : '0',
+                String(degrees(step)),
+                '0',
                 (text) => {
                   const d = parse(text);
-                  void save('angle_increment', d === null ? (area ? undefined : 0) : Math.min(180, Math.max(0, d)) * DEG);
+                  void save('angle_increment', d === null ? 0 : Math.min(180, Math.max(0, d)) * DEG);
                 },
               )}
               °
             </label>
-            {!area && has('angle_increment_every') && (
+            {has('angle_increment_every') && (
               <label className={local.field}>
                 {tr('after every')}
                 {numberField('every', String(every), '1', (text) => {
@@ -370,60 +363,19 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
                 {tr('th mowing run')}
               </label>
             )}
-            {!area && steps + mows > 0 && (
+            {steps + mows > 0 && (
               <button disabled={state.busy} onClick={() => void resetAngle()}>
                 {tr('back to 0°')}
               </button>
             )}
           </div>
-          {!area && !!omIncrement && (
+          {!!omIncrement && (
             <span className={local.error}>
               {tr('OpenMower turns the angle further as well (mow_angle_increment {deg}°), the two add up. Set it to 0 in mower_params.yaml.', {
                 deg: omIncrement,
               })}
             </span>
           )}
-        </Row>
-      )}
-
-      {area?.range && (
-        <Row
-          label={tr('Angle range')}
-          help={tr(
-            'The direction of the lanes stays between these two. When the angle turns further by itself after every mowing run, it swings back and forth between them. 0° and 180° give the same lanes.',
-          )}
-          note={
-            area.range.min !== undefined && area.range.max !== undefined
-              ? deg(area.range.min) === deg(area.range.max)
-                ? tr('The lanes always run at {from}°.', {from: deg(area.range.min)})
-                : tr('The lanes stay between {from}° and {to}°.', {from: deg(area.range.min), to: deg(area.range.max)})
-              : area.range.min !== undefined || area.range.max !== undefined
-                ? tr('Set both ends, one alone does nothing.')
-                : tr('No range: the lanes may run any way, an angle turning further goes round all 180°.')
-          }
-        >
-          <div className={local.inline}>
-            {(['min', 'max'] as const).map((end) => (
-              <label key={end} className={local.field}>
-                {end === 'min' ? tr('from') : tr('to')}
-                {numberField(
-                  'range' + end,
-                  area.range![end] !== undefined ? String(deg(area.range![end]!)) : '',
-                  '',
-                  (text) => {
-                    const d = parse(text);
-                    const v = d === null ? undefined : deg(d * DEG) * DEG;
-                    if (end === 'min') area.range!.set(v, area.range!.max);
-                    else area.range!.set(area.range!.min, v);
-                  },
-                )}
-                °
-              </label>
-            ))}
-            {(area.range.min !== undefined || area.range.max !== undefined) && (
-              <button onClick={() => area.range!.set(undefined, undefined)}>{tr('none')}</button>
-            )}
-          </div>
         </Row>
       )}
 

@@ -727,11 +727,6 @@ function MapEditor() {
                       own: selectedArea.properties.planner ?? {},
                       passes: selectedArea.properties.outline_count,
                       planned: plan?.chosen?.perimeter_passes,
-                      range: {
-                        min: selectedArea.properties.angle_min,
-                        max: selectedArea.properties.angle_max,
-                        set: (min, max) => updateProperties({angle_min: min, angle_max: max}),
-                      },
                       set: (key, value) => {
                         const own = {...(selectedArea.properties.planner ?? {})};
                         if (value === undefined || value === null) delete own[key];
