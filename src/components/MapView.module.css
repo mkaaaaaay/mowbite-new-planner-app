@@ -510,13 +510,13 @@
   }
 }
 
-/* the mower at its real size, from the sizes the planner knows: the body, the blade and the point it follows */
+/* the mower at its real size (Mower sizes in the settings) */
 .mowerBody {
   pointer-events: none;
-  fill: var(--c-mower);
+  fill: var(--c-body);
   fill-opacity: 0.12;
-  stroke: var(--c-mower);
-  stroke-opacity: 0.8;
+  stroke: var(--c-body);
+  stroke-opacity: 0.85;
   stroke-width: 1.25;
   stroke-linejoin: round;
 }
@@ -525,24 +525,67 @@
 .mowerBladeOn {
   pointer-events: none;
   fill: none;
-  stroke: #fff;
+  stroke: var(--c-swath);
   stroke-opacity: 0.85;
   stroke-width: 1;
   stroke-dasharray: 3 2;
 }
 
 .mowerBladeOn {
-  fill: #fff;
-  fill-opacity: 0.25;
+  fill: var(--c-swath);
+  fill-opacity: 0.2;
   stroke-dasharray: none;
+}
+
+.mowerBladeBar {
+  pointer-events: none;
+  fill: var(--c-swath);
+  fill-opacity: 0.6;
 }
 
 .mowerAxle {
   pointer-events: none;
-  fill: #fff;
-  stroke: #000;
-  stroke-opacity: 0.5;
-  stroke-width: 0.75;
+  fill: var(--c-body);
+}
+
+.mowerArrow {
+  pointer-events: none;
+  fill: none;
+  stroke: var(--c-body);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* where the edges really are, the outlines being the middle of the mower */
+.realEdge {
+  pointer-events: none;
+  fill: none;
+  stroke: var(--c-edge);
+  stroke-opacity: 0.9;
+  stroke-width: 1.25;
+  stroke-dasharray: 5 3;
+  stroke-linejoin: round;
+}
+
+/* the strip the blade cut, as wide as the blade on the map: each lane on its own, so overlaps show darker */
+.swath {
+  pointer-events: none;
+  fill: none;
+  stroke: var(--c-swath);
+  stroke-opacity: 0.22;
+  stroke-linecap: butt;
+  stroke-linejoin: round;
+}
+
+.svg .swath .swathEnd {
+  fill: var(--c-swath);
+  fill-opacity: 0.22;
+  stroke: none;
+}
+
+.svg .swath path {
+  vector-effect: none;
 }
 
 /* where the planner found the body sticking out: the body there, in red */

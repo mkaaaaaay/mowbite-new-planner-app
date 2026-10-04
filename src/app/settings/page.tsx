@@ -13,6 +13,7 @@ import {setSwipeEnabled, useSwipeEnabled} from '@/lib/swipe';
 import {UpdateSettings} from '@/components/Updates';
 import {usePlannerSettings} from '@/lib/mowerBody';
 import Link from 'next/link';
+import {MowerSizesSettings} from '@/components/MowerSizesSettings';
 
 const noop = () => () => {};
 
@@ -301,6 +302,12 @@ export default function SettingsPage() {
               {tr('To the map')}
             </Link>
           </section>
+        )}
+        {/* without the MowBite Planner the sizes are kept in the app */}
+        {planner === null && (
+          <Group id="mower" title={tr('Your mower')}>
+            <MowerSizesSettings settings={settings} styles={styles} />
+          </Group>
         )}
 
         <Group id="app" title={tr('App')}>
