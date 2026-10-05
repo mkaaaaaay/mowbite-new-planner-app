@@ -33,6 +33,7 @@ import {useAreaProperties} from '@/lib/areaProps';
 import {useMowPlan} from './useMowPlan';
 import {useMapEdits} from './useMapEdits';
 import {checkMap} from '@/lib/mapCheck';
+import {narrowPassages} from '@/lib/narrowPassages';
 import Problems from './Problems';
 import {BodyCheck, PlanChecks} from './BodyCheck';
 import {AreaPlanner} from './AreaPlanner';
@@ -133,9 +134,23 @@ function MapEditor() {
     [map, selectedArea, simplified],
   );
 
-  // self crossing outlines, a dock off the drivable areas and the like, also in the preview of reducing points
+  // self crossing outlines, a dock off the drivable areas and the like, also in the preview of reducing points. With a
+  // planner that keeps the mower's body off the edges and obstacles: where it doesn't get through between them
   const approachDistance = numParam(params, PARAM.dockingApproachDistance);
-  const problems = useMemo(() => (shownMap ? checkMap(shownMap, approachDistance) : []), [shownMap, approachDistance]);
+  const plannerSettings = usePlannerSettings();
+  const margins = useMemo(() => {
+    const value = (k: string) => plannerSettings?.settings[k]?.value;
+    const sized = ['robot_width', 'robot_front', 'robot_rear'].every((k) => {
+      const v = value(k);
+      return typeof v === 'number' && v > 0;
+    });
+    const [edge, obstacle, width] = [value('edge_margin'), value('obstacle_margin'), value('robot_width')];
+    return sized && typeof edge === 'number' && typeof obstacle === 'number' ? {edge, obstacle, width: width as number} : null;
+  }, [plannerSettings]);
+  const problems = useMemo(
+    () => (shownMap ? [...checkMap(shownMap, approachDistance), ...(margins ? narrowPassages(shownMap, margins) : [])] : []),
+    [shownMap, approachDistance, margins],
+  );
   const warnings = problems.filter((p) => p.level === 'warn').length;
   const problemSpots = problems.flatMap((p) => ('at' in p ? [p.at] : []));
 
@@ -143,7 +158,6 @@ function MapEditor() {
   const [draggingPoint, setDraggingPoint] = useState(false);
   // the mower's body as the planner knows it, and where it would stick out in the selected area's plan
   const body = useMowerBody();
-  const plannerSettings = usePlannerSettings();
   // a planner that checks the mower's body in every plan (it has body_fit): what it found shows with the plan
   const collisionMode = !!plannerSettings?.settings.body_fit;
   const [bodySpots, setBodySpots] = useState<BodySpot[] | null>(null);

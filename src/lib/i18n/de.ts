@@ -912,6 +912,8 @@ const de: Record<string, string> = {
   "How far the mower keeps its body off this one. Empty: the distance to obstacles of the planner ({cm} cm). It counts once the map is saved.": "Wie weit der Mäher mit dem Körper von diesem wegbleibt. Leer: der Abstand zu Hindernissen aus dem Planer ({cm} cm). Gilt, sobald die Karte gespeichert ist.",
   "Drive around the obstacle, close to it all the way: the line is the middle of the mower. Then stop, it closes by itself.": "Fahre eng am Hindernis entlang einmal herum: Die Linie ist die Mitte des Mähers. Dann anhalten, es schließt sich von selbst.",
   "Drive along the edge, close to it all the way: the line is the middle of the mower. Back at the start, stop: the outline closes by itself.": "Fahre die ganze Zeit eng an der Kante entlang: Die Linie ist die Mitte des Mähers. Zurück am Anfang anhalten, der Umriss schließt sich von selbst.",
+  "the mower doesn't get through to the edge of {area} here (red on the map): {gap} cm between the lines, it needs about {need} cm. Move the obstacle away, or grass stays standing there.": "hier passt der Mäher zum Rand von {area} nicht durch (rot auf der Karte): {gap} cm zwischen den Linien, nötig sind etwa {need} cm. Hindernis wegstellen, sonst bleibt dort Gras stehen.",
+  "the mower doesn't get through between it and {other} here (red on the map): {gap} cm between the lines, it needs about {need} cm. Move one of them away, or grass stays standing there.": "hier passt der Mäher zwischen ihm und {other} nicht durch (rot auf der Karte): {gap} cm zwischen den Linien, nötig sind etwa {need} cm. Eins davon wegstellen, sonst bleibt dort Gras stehen.",
 };
 
 export default de;
