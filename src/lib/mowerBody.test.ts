@@ -10,6 +10,7 @@ import {
   sizesBody,
   spotPlaces,
   swathEnd,
+  swathGroups,
   swathPieces,
   type PlannerSettings,
 } from './mowerBody';
@@ -197,5 +198,31 @@ describe('mower models', () => {
     expect(modelOf({width: 0.41, front: 0.43, rear: 0.18, blade: 0.18, bladeAhead: 0.185})).toBe('yf-nx');
     expect(modelOf({...MOWER_MODELS[0].sizes, width: 0.42})).toBeNull();
     expect(modelOf(undefined)).toBeNull();
+  });
+});
+
+describe('strip in a few paths', () => {
+  const lane = (y: number) => [
+    {x: 0, y},
+    {x: 3, y},
+  ];
+
+  it('puts lanes that overlap into different groups, far apart ones may share', () => {
+    // back and forth 14 cm apart, an 18 cm blade overlaps the lane before
+    const lanes = [0, 1, 2, 3, 4, 5].map((i) => (i % 2 ? lane(i * 0.14).reverse() : lane(i * 0.14)));
+    const g = swathGroups(lanes, 0.18);
+    for (let i = 1; i < g.length; i++) expect(g[i]).not.toBe(g[i - 1]);
+    expect(Math.max(...g)).toBeLessThan(4);
+    // half a meter apart they don't touch
+    expect(swathGroups([lane(0), lane(0.5)], 0.18)).toEqual([0, 0]);
+  });
+
+  it('shares a group only where more pieces overlap than there are groups', () => {
+    const g = swathGroups(
+      Array.from({length: 6}, () => lane(0)),
+      0.18,
+    );
+    expect(g.slice(0, 4)).toEqual([0, 1, 2, 3]);
+    expect(g).toHaveLength(6);
   });
 });
