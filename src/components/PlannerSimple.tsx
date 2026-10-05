@@ -382,13 +382,15 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
           {has('turn_on_spot') && (
             <Row
               label={tr('Turning')}
-              help={tr('At the end of a lane the mower turns in a loop, gentle on the lawn, or on the spot, about 14 % quicker but the wheels may scuff the lawn.')}
+              help={tr(
+                'Where a plain curve doesn’t fit (at the end of a lane, on the way into one), the mower drives a loop, gentle on the lawn, or turns on the spot, about 14 % quicker but the wheels may scuff the lawn. Curves that fit stay curves.',
+              )}
               note={spot ? tr('On the spot: quicker, harder on the lawn.') : tr('In a loop: gentle on the lawn.')}
             >
               {either('turn_on_spot', tr('In a loop'), tr('On the spot'))}
             </Row>
           )}
-          {has('min_turn_radius') && !spot && (
+          {has('min_turn_radius') && (
             <Row
               label={tr('Tightest curve')}
               help={tr(

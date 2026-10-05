@@ -877,7 +877,7 @@ const de: Record<string, string> = {
   "How far the mower keeps its body off obstacles, areas not mowed and inactive ones. An obstacle can have its own distance, in the editor under the obstacle.": "Wie weit der Mäher mit dem Körper von Hindernissen, nicht gemähten und inaktiven Flächen wegbleibt. Ein Hindernis kann im Editor einen eigenen Abstand haben.",
   "Each obstacle can have its own, in the editor.": "Jedes Hindernis kann im Editor einen eigenen haben.",
   "Turning": "Wendeart",
-  "At the end of a lane the mower turns in a loop, gentle on the lawn, or on the spot, about 14 % quicker but the wheels may scuff the lawn.": "Am Bahnende wendet der Mäher in einer Schleife, schonend für den Rasen, oder auf der Stelle, etwa 14 % schneller, aber die Räder können den Rasen aufreiben.",
+  "Where a plain curve doesn’t fit (at the end of a lane, on the way into one), the mower drives a loop, gentle on the lawn, or turns on the spot, about 14 % quicker but the wheels may scuff the lawn. Curves that fit stay curves.": "Wo ein einfacher Bogen nicht passt (am Ende einer Bahn, auf dem Weg hinein), fährt der Mäher eine Schleife, die schont den Rasen, oder er dreht auf der Stelle: etwa 14 % schneller, aber die Räder können den Rasen aufreißen. Bögen, die passen, bleiben.",
   "On the spot: quicker, harder on the lawn.": "Auf der Stelle: schneller, härter für den Rasen.",
   "In a loop: gentle on the lawn.": "In einer Schleife: schont den Rasen.",
   "On the spot": "Auf der Stelle",
