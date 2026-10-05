@@ -14,6 +14,7 @@ import {UpdateSettings} from '@/components/Updates';
 import {usePlannerSettings} from '@/lib/mowerBody';
 import Link from 'next/link';
 import {MowerSizesSettings} from '@/components/MowerSizesSettings';
+import {NotifySettings} from '@/components/NotifySettings';
 
 const noop = () => () => {};
 
@@ -303,12 +304,11 @@ export default function SettingsPage() {
             </Link>
           </section>
         )}
-        {/* without the MowBite Planner the sizes are kept in the app */}
-        {planner === null && (
-          <Group id="mower" title={tr('Your mower')}>
-            <MowerSizesSettings settings={settings} styles={styles} />
-          </Group>
-        )}
+        <Group id="mower" title={tr('Your mower')}>
+          {/* without the MowBite Planner the sizes are kept in the app */}
+          {planner === null && <MowerSizesSettings settings={settings} styles={styles} />}
+          <NotifySettings settings={settings} styles={styles} />
+        </Group>
 
         <Group id="app" title={tr('App')}>
           <MowersSection settings={settings} />
