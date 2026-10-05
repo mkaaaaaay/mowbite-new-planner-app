@@ -34,6 +34,9 @@ export interface MapArea {
     // MowBite Planner settings for this area only (pattern, turns...), on top of the ones for all areas. Only the
     // MowBite Planner reads it, and only a mower_map that keeps properties it doesn't know saves it
     planner?: Record<string, unknown>;
+    // m, how far the mower's body keeps off this obstacle, a mowing area not mowed or an inactive one (MowBite Planner),
+    // in place of its obstacle_margin. Saved only by a mower_map that keeps properties it doesn't know
+    margin?: number;
   };
   outline: Point[];
 }

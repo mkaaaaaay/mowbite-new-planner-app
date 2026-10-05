@@ -1,5 +1,5 @@
 import type {Point} from '@/hooks/useMowerMap';
-import type {MowPlan, PlanChosen} from './mowPlan';
+import type {MowPlan, PlanChecks, PlanChosen} from './mowPlan';
 import type {PlanPath} from './planProgress';
 import {RPC} from './openmower';
 import {callRpc, rpcMethods} from './rpc';
@@ -29,7 +29,42 @@ export function readPaths(answer: {paths?: PlannerPath[]} | PlannerPath[]): Plan
   });
 }
 
-export function readPlan(answer: {paths?: PlannerPath[]; angle?: number; stats?: {chosen?: PlanChosen}} | PlannerPath[]): MowPlan {
+type PlanAnswer = {
+  paths?: PlannerPath[];
+  angle?: number;
+  stats?: {chosen?: PlanChosen; body_fit?: unknown; headland_turns?: unknown};
+  warnings?: unknown;
+  body_space?: unknown;
+};
+
+const xy = (v: unknown): Point | null => (Array.isArray(v) && typeof v[0] === 'number' && typeof v[1] === 'number' ? {x: v[0], y: v[1]} : null);
+const xys = (v: unknown): Point[] => (Array.isArray(v) ? v.map(xy).filter((p): p is Point => !!p) : []);
+// the planner says this at some angles though nothing is wrong (being fixed in the planner)
+const FALSE_ALARM = /poses outside the space the mower may drive in/;
+
+// what the collision mode found (stats.body_fit, stats.headland_turns, warnings, body_space), nothing from a planner
+// without it
+export function readChecks(answer: PlanAnswer): PlanChecks | undefined {
+  const fit = (answer.stats?.body_fit ?? null) as {places?: unknown; skipped_m?: unknown} | null;
+  const head = (answer.stats?.headland_turns ?? null) as {places?: unknown} | null;
+  const space = (answer.body_space ?? null) as {outlines?: unknown; holes?: unknown} | null;
+  const warnings = (Array.isArray(answer.warnings) ? answer.warnings : []).filter((w): w is string => typeof w === 'string' && !FALSE_ALARM.test(w));
+  if (!fit && !head && !space && !warnings.length) return undefined;
+  const places = (Array.isArray(fit?.places) ? fit.places : []).flatMap((p: unknown) => {
+    const at = xy(p);
+    return at ? [{...at, m: typeof (p as number[])[2] === 'number' ? (p as number[])[2] : 0}] : [];
+  });
+  const rings = [space?.outlines, space?.holes].flatMap((list) => (Array.isArray(list) ? list.map(xys) : [])).filter((r) => r.length >= 3);
+  return {
+    ...(rings.length ? {space: rings} : {}),
+    places,
+    skipped: typeof fit?.skipped_m === 'number' ? fit.skipped_m : 0,
+    turns: xys(head?.places),
+    warnings,
+  };
+}
+
+export function readPlan(answer: PlanAnswer | PlannerPath[]): MowPlan {
   const loops: Point[][] = [];
   const stripes: [Point, Point][] = [];
   for (const p of readPaths(answer)) {
@@ -37,7 +72,8 @@ export function readPlan(answer: {paths?: PlannerPath[]; angle?: number; stats?:
     else for (let i = 1; i < p.points.length; i++) stripes.push([p.points[i - 1], p.points[i]]);
   }
   const chosen = Array.isArray(answer) ? undefined : answer.stats?.chosen;
-  return {loops, stripes, angle: Array.isArray(answer) ? undefined : answer.angle, open: true, ...(chosen ? {chosen} : {})};
+  const checks = Array.isArray(answer) ? undefined : readChecks(answer);
+  return {loops, stripes, angle: Array.isArray(answer) ? undefined : answer.angle, open: true, ...(chosen ? {chosen} : {}), ...(checks ? {checks} : {})};
 }
 
 // what mowing.plan takes: a saved area by id, or an area as it is right now in the editor (map.json format,
@@ -62,7 +98,8 @@ export type PlanRequest = ({area_id: string} & PlanProps) | ({outline: Point[]; 
 export async function mowerPlan(req: PlanRequest, viaPlanner = false): Promise<MowPlan | null> {
   const known = await rpcMethods();
   if ((viaPlanner || req.settings) && known?.has(RPC.plannerPlan)) {
-    return readPlan(await callRpc(RPC.plannerPlan, req, 30000));
+    // with the body checked a plan takes the mower 10 to 20 s, more for a whole new one
+    return readPlan(await callRpc(RPC.plannerPlan, req, 90000));
   }
   if (!known?.has(RPC.areaPlan)) return null;
   // mowing.plan doesn't take planner settings

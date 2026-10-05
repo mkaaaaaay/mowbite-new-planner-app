@@ -1,8 +1,9 @@
 'use client';
 
 import type {PlanRequest} from '@/lib/areaPlan';
-import {tr} from '@/lib/i18n';
+import {fmt, tr} from '@/lib/i18n';
 import {checkBody, spotPlaces, usePlannerSettings, type BodyCheck as Result, type BodySpot} from '@/lib/mowerBody';
+import type {PlanChecks as Checks} from '@/lib/mowPlan';
 import {RpcError} from '@/lib/rpc';
 import {useEffect, useMemo, useState} from 'react';
 import styles from './page.module.css';
@@ -66,6 +67,33 @@ export function BodyCheck({request, onSpots}: {request: PlanRequest | null; onSp
           )}
         </span>
       )}
+    </div>
+  );
+}
+
+// With a planner that checks the body in every plan (collision mode): what it found in the plan shown, no button.
+// The places are on the map (MapView fitPlaces, turnPlaces)
+export function PlanChecks({checks, on}: {checks: Checks | undefined; on: boolean}) {
+  if (!on) return <span className={styles.dim}>{tr('Collision check off: the plan stays as it comes.')}</span>;
+  const places = checks?.places ?? [];
+  const left = places.filter((p) => p.m > 0).length;
+  return (
+    <div className={styles.bodyCheck}>
+      <span className={styles.dim}>{tr('Collision check on, with the mower sizes set.')}</span>
+      {places.length ? (
+        <span className={styles.warningText}>
+          {tr('{n} places driven another way so the body fits', {n: places.length})}
+          {left > 0 && `, ${tr('{m} m left out at {n} of them', {m: fmt(checks?.skipped ?? 0, 1), n: left})}`}
+        </span>
+      ) : (
+        <span className={styles.dim}>{tr('The body fits everywhere.')}</span>
+      )}
+      {(checks?.turns.length ?? 0) > 0 && <span className={styles.dim}>{tr('{n} turns still in the field of lanes', {n: checks!.turns.length})}</span>}
+      {checks?.warnings.map((w, i) => (
+        <span key={i} className={styles.dim}>
+          {w}
+        </span>
+      ))}
     </div>
   );
 }

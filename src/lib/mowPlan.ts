@@ -30,6 +30,21 @@ export interface MowPlan {
   between?: number;
   // what the MowBite Planner planned with (lane_spacing_mode auto: what it picked)
   chosen?: PlanChosen;
+  // what its collision mode found while planning
+  checks?: PlanChecks;
+}
+
+// The MowBite Planner with the mower's body checks every plan: where the body would stick out past a real edge or into
+// what to keep off, it drives another way and leaves a little out where nothing fits
+export interface PlanChecks {
+  // where the body may go: the real edges less the distances kept, outlines and holes
+  space?: Point[][];
+  // places driven another way, m: meters of loops and lanes left out there (0: only driven differently)
+  places: {x: number; y: number; m: number}[];
+  skipped: number;
+  // clean stripes: where it still had to turn in the field of lanes
+  turns: Point[];
+  warnings: string[];
 }
 
 export interface PlanChosen {

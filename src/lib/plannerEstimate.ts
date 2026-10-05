@@ -51,6 +51,10 @@ export interface PlannerEstimateInput {
   turnTypes?: string[]; // the kinds of turns allowed (u_turn, bulb, k_turn, detour, pivot)
   allowReverse?: boolean; // k-turns, which back up
   minTurnRadius?: number; // m, no arc of a turn tighter than this (it turns on the spot there)
+  // collision mode (body sizes with a planner that keeps distances): the first loop keeps at least edgeMargin off the
+  // outline, the loops round a hole at least its margin (undefined: like round the outline)
+  edgeMargin?: number;
+  holeMargins?: (number | undefined)[];
 }
 
 export interface PlannerEstimate extends MowPlan {
@@ -1382,6 +1386,7 @@ function prepare(input: PlannerEstimateInput): Prepared | null {
     input.outline, input.holes, input.spacing, input.bladeWidth, input.perimeterOffset, input.passes, input.overlapPasses,
     input.fillPattern === 'concentric', input.minLaneLength, input.narrowParts, input.turnRadius, input.bladeOffset,
     input.body, input.start, input.perimeterOrder, input.perimeterDirection, input.cornerRadius, input.simplifyTolerance,
+    input.edgeMargin, input.holeMargins,
   ]);
   if (PREPARED.has(key)) {
     const known = PREPARED.get(key)!;
@@ -1417,11 +1422,18 @@ export function autoPasses(input: PlannerEstimateInput, width: number): number {
 function prepareNow(input: PlannerEstimateInput): Prepared | null {
   const width = Math.max(input.bladeWidth, input.spacing);
   const half = width / 2;
-  const found = freeSpace(input.outline, input.holes, half, input.simplifyTolerance ?? 0.01);
+  const first = Math.max(input.perimeterOffset, input.edgeMargin ?? 0);
+  // a hole whose loops keep further off than the first loop does: that much bigger, the loops go round it at first
+  const holes = input.holes.map((h, i) => {
+    const extra = (input.holeMargins?.[i] ?? 0) - first;
+    if (extra <= 0.001 || h.length < 3) return h;
+    const grown = grow([ccw(toPath(h))], extra, ClipperLib.JoinType.jtRound).sort((a, b) => Math.abs(area(b)) - Math.abs(area(a)));
+    return grown.length ? fromPath(grown[0]) : h;
+  });
+  const found = freeSpace(input.outline, holes, half, input.simplifyTolerance ?? 0.01);
   let free = found.paths;
   let freeRings = found.rings;
   if (!free.length) return null;
-  const first = input.perimeterOffset;
   const lateral = input.bladeOffset ?? 0;
   // an area to keep out of is a wall, recorded edges or not: the first loop keeps the body off it (half its width, as
   // with hard edges), what that leaves along it isn't mowed

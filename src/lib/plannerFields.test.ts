@@ -24,6 +24,11 @@ describe('planner fields', () => {
       'angle_strategy',
       'perimeter_order',
       'turn_radius',
+      'turn_on_spot',
+      'headland_turns',
+      'edge_margin',
+      'obstacle_margin',
+      'body_fit',
       'route_order',
       'bend_max_gap',
     ]);

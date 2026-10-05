@@ -685,3 +685,14 @@
 .foldCards > section > div:first-child > h2 {
   display: none;
 }
+
+/* an obstacle's own distance, in the area card */
+.marginInput {
+  width: 56px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: transparent;
+  color: var(--foreground);
+  font-size: 13px;
+}

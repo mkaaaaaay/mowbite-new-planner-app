@@ -34,7 +34,7 @@ import {useMowPlan} from './useMowPlan';
 import {useMapEdits} from './useMapEdits';
 import {checkMap} from '@/lib/mapCheck';
 import Problems from './Problems';
-import {BodyCheck} from './BodyCheck';
+import {BodyCheck, PlanChecks} from './BodyCheck';
 import {AreaPlanner} from './AreaPlanner';
 import {Fold} from './Fold';
 import {useMowerBody, usePlannerSettings, type BodySpot} from '@/lib/mowerBody';
@@ -144,6 +144,8 @@ function MapEditor() {
   // the mower's body as the planner knows it, and where it would stick out in the selected area's plan
   const body = useMowerBody();
   const plannerSettings = usePlannerSettings();
+  // a planner that checks the mower's body in every plan (it has body_fit): what it found shows with the plan
+  const collisionMode = !!plannerSettings?.settings.body_fit;
   const [bodySpots, setBodySpots] = useState<BodySpot[] | null>(null);
   const {toolWidth, angleOffset, offsetIsAbsolute, angleIncrement, shownArea, autoAngle, touchAngle, mismatch, realPlan, plan, stripes, planLength, planRequest} =
     useMowPlan({params, liveMap, shownMap, selectedAreaId, pastJobs, areaProps, showStripes, previewCorrection, draggingPoint});
@@ -532,6 +534,9 @@ function MapEditor() {
                 preview={splitPreview ?? (merged ? [merged.outline] : undefined)}
                 markers={spot || problemSpots.length ? [...(spot ? [spot] : []), ...problemSpots] : undefined}
                 bodySpots={bodySpots ?? undefined}
+                bodySpace={realPlan?.checks?.space}
+                fitPlaces={realPlan?.checks?.places}
+                turnPlaces={realPlan?.checks?.turns}
                 focus={spot ?? undefined}
               />
             )}
@@ -749,7 +754,13 @@ function MapEditor() {
                     <summary>{tr('All settings (expert)')}</summary>
                     <AreaPlanner properties={selectedArea.properties} update={updateProperties} remember={remember} />
                   </details>
-                  {body && realPlan && <BodyCheck request={planRequest} onSpots={setBodySpots} />}
+                  {body &&
+                    realPlan &&
+                    (collisionMode ? (
+                      <PlanChecks checks={realPlan.checks} on={(selectedArea.properties.planner?.body_fit ?? plannerSettings?.settings.body_fit?.value) !== false} />
+                    ) : (
+                      <BodyCheck request={planRequest} onSpots={setBodySpots} />
+                    ))}
                 </Fold>
               )}
 

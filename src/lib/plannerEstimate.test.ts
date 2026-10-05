@@ -59,6 +59,23 @@ describe('estimate like the MowBite Planner', () => {
     expect(plan.stripes.filter(([p]) => Math.abs(p.y - nearest) < 1e-9)).toHaveLength(2);
   });
 
+  it('collision mode: the first pass keeps the distance to the edge, the passes round an obstacle its own', () => {
+    const minX = (l: {x: number}[]) => Math.min(...l.map((p) => p.x));
+    expect(Math.min(...plannerEstimate(base)!.loops.map(minX))).toBeCloseTo(0, 6);
+    expect(Math.min(...plannerEstimate({...base, edgeMargin: 0.2})!.loops.map(minX))).toBeCloseTo(0.2, 6);
+    // the pass closest to the obstacle (its left side at x 4)
+    const closest = (input: PlannerEstimateInput) =>
+      Math.max(
+        ...plannerEstimate(input)!
+          .loops.filter((l) => minX(l) > 3 && Math.max(...l.map((p) => p.x)) < 7)
+          .map(minX),
+      );
+    expect(closest({...base, holes: [rect(4, 2, 6, 4)]})).toBeCloseTo(4, 3);
+    expect(closest({...base, holes: [rect(4, 2, 6, 4)], holeMargins: [0.3]})).toBeCloseTo(3.7, 3);
+    // a hole without a margin of its own stays as it is
+    expect(closest({...base, holes: [rect(4, 2, 6, 4)], holeMargins: [undefined]})).toBeCloseTo(4, 3);
+  });
+
   it('works the direction out like the planner', () => {
     const tilted = rect(0, 0, 12, 3).map((p) => ({x: p.x * Math.cos(0.5) - p.y * Math.sin(0.5), y: p.x * Math.sin(0.5) + p.y * Math.cos(0.5)}));
     expect(Math.abs(Math.sin(longestEdgeAngle(tilted) - 0.5))).toBeLessThan(1e-9);

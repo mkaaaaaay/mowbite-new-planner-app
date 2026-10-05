@@ -123,6 +123,9 @@ export function MowerBodySettings({styles}: {styles: Styles}) {
   }
 
   const known = settings?.settings ?? {};
+  // a planner that checks the body in every plan (it has edge_margin) keeps distances of its own, body_tolerance isn't
+  // a leeway past the edges there
+  const keys = BODY_SETTINGS.filter((k) => !(k === 'body_tolerance' && known.edge_margin));
   // what the form would make of it: the sketch follows the fields while typing
   const metres = (key: BodySetting) => {
     const v = parseFloat(form[key].replace(',', '.'));
@@ -131,7 +134,7 @@ export function MowerBodySettings({styles}: {styles: Styles}) {
   const sketch = bodyFrom({
     settings: Object.fromEntries(BODY_SETTINGS.map((k) => [k, {value: metres(k)} as never])),
   });
-  const missing = BODY_SETTINGS.filter((k) => !known[k]);
+  const missing = keys.filter((k) => !known[k]);
   const model = other ? '' : (modelOf(sizesOf(form)) ?? '');
   // a planner from before the body check takes robot_width as "the lines are walls": its centre then keeps half the
   // width off them all the way round, so the width only goes to one that knows the rest too
@@ -139,7 +142,7 @@ export function MowerBodySettings({styles}: {styles: Styles}) {
 
   const save = async () => {
     const changes: Record<string, unknown> = {};
-    for (const key of BODY_SETTINGS) {
+    for (const key of keys) {
       const s = known[key];
       if (!s || !usable(key)) continue;
       const text = form[key].trim();
@@ -207,7 +210,7 @@ export function MowerBodySettings({styles}: {styles: Styles}) {
       </label>
       {sketch && <Sketch body={sketch} />}
       <div className={local.grid}>
-        {BODY_SETTINGS.map((key) => (
+        {keys.map((key) => (
           <label key={key} className={styles.field}>
             {tr(LABELS[key])} (cm)
             <input
@@ -223,7 +226,7 @@ export function MowerBodySettings({styles}: {styles: Styles}) {
       {missing.length > 0 && settings && (
         <p className={styles.error}>
           {tr('The planner on the mower is older and does not know all sizes yet ({which}), it needs a new image.', {
-            which: BODY_SETTINGS.filter((k) => !usable(k))
+            which: keys.filter((k) => !usable(k))
               .map((k) => tr(LABELS[k]))
               .join(', '),
           })}

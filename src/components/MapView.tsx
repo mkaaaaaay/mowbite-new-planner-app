@@ -73,6 +73,11 @@ interface MapViewProps {
   markers?: Point[];
   // poses where the planner found the mower's body sticking out, drawn as the body there
   bodySpots?: {x: number; y: number; yaw: number}[];
+  // the planner's collision mode: where the body may go, the places it drove another way (m: left out there) and
+  // where clean stripes still turned in the field
+  bodySpace?: Point[][];
+  fitPlaces?: {x: number; y: number; m: number}[];
+  turnPlaces?: Point[];
   // start zoomed in around this point instead of showing the whole map
   focus?: Point;
   // zoom and position are kept under this key while the app runs, e.g. across a visit to the settings
@@ -306,6 +311,9 @@ export default function MapView({
   overlay,
   markers,
   bodySpots,
+  bodySpace,
+  fitPlaces,
+  turnPlaces,
   focus,
   viewKey,
   onClickEmpty,
@@ -1246,6 +1254,15 @@ export default function MapView({
       }}
     >
       {renderContent(k)}
+      {bodySpace && bodySpace.length > 0 && <path className={styles.bodySpace} d={pathOf(bodySpace, drawn, true)} />}
+      {turnPlaces?.map((p, i) => {
+        const [x, y] = toScreen(p.x, p.y);
+        return <circle key={'turn' + i} className={styles.turnPlace} cx={x} cy={y} r={0.3 * scale} />;
+      })}
+      {fitPlaces?.map((p, i) => {
+        const [x, y] = toScreen(p.x, p.y);
+        return <circle key={'fit' + i} className={p.m > 0 ? styles.fitSkip : styles.fitPlace} cx={x} cy={y} r={0.4 * scale} />;
+      })}
       {body &&
         bodySpots?.map((s, i) => {
           const shape = bodyShape(body, s.x, s.y, s.yaw);

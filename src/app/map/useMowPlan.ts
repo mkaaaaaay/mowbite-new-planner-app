@@ -341,6 +341,10 @@ export function useMowPlan({
     const width = num('robot_width', 0);
     const front = num('robot_front', 0);
     const rear = num('robot_rear', 0);
+    // a planner that keeps distances (edge_margin) and the body's sizes: the lines are where the middle drove, the
+    // loops keep edge_margin off the outline and an obstacle's own distance or obstacle_margin off it
+    const collision = ps.edge_margin !== undefined && width > 0 && front + rear > 0;
+    const keepOff = num('obstacle_margin', 0.1);
     // where the area lies, while it's as saved (the planner reads that from the saved map): the docking station
     // the plan starts and ends at, the other lawns the body may reach into, the areas nothing goes over
     const others = unchanged && liveMap ? liveMap.areas.filter((a) => a.id !== shownArea.id && a.outline.length > 2) : [];
@@ -354,9 +358,19 @@ export function useMowPlan({
       spacing,
       spacingMode: auto ? 'auto' : 'fixed',
       bladeWidth: blade,
-      // a wall at the line: the body keeps its half width off it
+      // a wall at the line: the body keeps its half width off it (without collision mode, where the lines are always
+      // where the middle drove)
       perimeterOffset:
-        str('edges', 'recorded') === 'hard' && width > 0 ? Math.max(offset, width / 2 - Math.abs(num('blade_offset', 0))) : offset,
+        !collision && str('edges', 'recorded') === 'hard' && width > 0 ? Math.max(offset, width / 2 - Math.abs(num('blade_offset', 0))) : offset,
+      ...(collision
+        ? {
+            edgeMargin: num('edge_margin', 0.05),
+            holeMargins: holes.map((h) => {
+              const obstacle = shownMap.areas.find((a) => a.outline === h);
+              return obstacle ? (typeof obstacle.properties.margin === 'number' ? obstacle.properties.margin : keepOff) : undefined;
+            }),
+          }
+        : {}),
       passes: sent('perimeter_passes', p.outline_count, 'outline_count'),
       overlapPasses: sent('lane_overlap_passes', p.outline_overlap_count, 'outline_overlap_count'),
       // (the planner keeps it within the range after adding its offset and what it turned further)
