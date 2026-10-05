@@ -41,6 +41,9 @@ export interface PlanChecks {
   space?: Point[][];
   // places driven another way, m: meters of loops and lanes left out there (0: only driven differently)
   places: {x: number; y: number; m: number}[];
+  // how many were driven another way, how many left out as nothing fits there (the path jumps over them), m left out
+  fixed: number;
+  left: number;
   skipped: number;
   // clean stripes: where it still had to turn in the field of lanes
   turns: Point[];

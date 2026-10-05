@@ -39,16 +39,18 @@ type PlanAnswer = {
 
 const xy = (v: unknown): Point | null => (Array.isArray(v) && typeof v[0] === 'number' && typeof v[1] === 'number' ? {x: v[0], y: v[1]} : null);
 const xys = (v: unknown): Point[] => (Array.isArray(v) ? v.map(xy).filter((p): p is Point => !!p) : []);
-// the planner says this at some angles though nothing is wrong (being fixed in the planner)
-const FALSE_ALARM = /poses outside the space the mower may drive in/;
+// the planner's own lines for what stats.body_fit counts, shown from the counts
+const COUNTED = [/^\d+ places? driven another way where the body would stick out/, /^\d+ places? left out where the body doesn't fit/];
 
 // what the collision mode found (stats.body_fit, stats.headland_turns, warnings, body_space), nothing from a planner
 // without it
 export function readChecks(answer: PlanAnswer): PlanChecks | undefined {
-  const fit = (answer.stats?.body_fit ?? null) as {places?: unknown; skipped_m?: unknown} | null;
+  const fit = (answer.stats?.body_fit ?? null) as {places?: unknown; fixed?: unknown; left?: unknown; skipped_m?: unknown} | null;
   const head = (answer.stats?.headland_turns ?? null) as {places?: unknown} | null;
   const space = (answer.body_space ?? null) as {outlines?: unknown; holes?: unknown} | null;
-  const warnings = (Array.isArray(answer.warnings) ? answer.warnings : []).filter((w): w is string => typeof w === 'string' && !FALSE_ALARM.test(w));
+  const warnings = (Array.isArray(answer.warnings) ? answer.warnings : []).filter(
+    (w): w is string => typeof w === 'string' && !(fit && COUNTED.some((r) => r.test(w))),
+  );
   if (!fit && !head && !space && !warnings.length) return undefined;
   const places = (Array.isArray(fit?.places) ? fit.places : []).flatMap((p: unknown) => {
     const at = xy(p);
@@ -58,6 +60,8 @@ export function readChecks(answer: PlanAnswer): PlanChecks | undefined {
   return {
     ...(rings.length ? {space: rings} : {}),
     places,
+    fixed: typeof fit?.fixed === 'number' ? fit.fixed : places.length,
+    left: typeof fit?.left === 'number' ? fit.left : 0,
     skipped: typeof fit?.skipped_m === 'number' ? fit.skipped_m : 0,
     turns: xys(head?.places),
     warnings,

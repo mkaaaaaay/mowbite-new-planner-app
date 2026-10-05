@@ -28,7 +28,12 @@ describe('readChecks', () => {
         body_fit: {fixed: 2, left: 1, skipped_m: 1.25, places: [[1, 2, 0], [3, 4, 1.25], ['x']], jumps: [], tries: 3},
         headland_turns: {turns_in_field: 1, places: [[5, 6]], crossings: 0},
       },
-      warnings: ['2 places driven another way', 'poses outside the space the mower may drive in at 10°', 7],
+      warnings: [
+        '2 places driven another way where the body would stick out, 1.2 m of loops and lanes left out there',
+        "1 places left out where the body doesn't fit and no other way does, the path jumps over them at (3.00, 4.00)",
+        'the area is too narrow somewhere',
+        7,
+      ],
       body_space: {outlines: [[[0, 0], [4, 0], [4, 3]], [[1, 1]]], holes: [[[1, 1], [2, 1], [2, 2]]]},
     });
     expect(plan.checks).toEqual({
@@ -40,10 +45,12 @@ describe('readChecks', () => {
         {x: 1, y: 2, m: 0},
         {x: 3, y: 4, m: 1.25},
       ],
+      fixed: 2,
+      left: 1,
       skipped: 1.25,
       turns: [{x: 5, y: 6}],
-      // the false alarm the planner gives at some angles is left out
-      warnings: ['2 places driven another way'],
+      // the lines for the counts come from the counts
+      warnings: ['the area is too narrow somewhere'],
     });
   });
 

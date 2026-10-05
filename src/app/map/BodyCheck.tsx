@@ -75,19 +75,24 @@ export function BodyCheck({request, onSpots}: {request: PlanRequest | null; onSp
 // The places are on the map (MapView fitPlaces, turnPlaces)
 export function PlanChecks({checks, on}: {checks: Checks | undefined; on: boolean}) {
   if (!on) return <span className={styles.dim}>{tr('Collision check off: the plan stays as it comes.')}</span>;
-  const places = checks?.places ?? [];
-  const left = places.filter((p) => p.m > 0).length;
+  const fixed = checks?.fixed ?? 0;
+  const left = checks?.left ?? 0;
+  const skipped = checks?.skipped ?? 0;
   return (
     <div className={styles.bodyCheck}>
       <span className={styles.dim}>{tr('Collision check on, with the mower sizes set.')}</span>
-      {places.length ? (
+      {fixed > 0 && (
         <span className={styles.warningText}>
-          {tr('{n} places driven another way so the body fits', {n: places.length})}
-          {left > 0 && `, ${tr('{m} m left out at {n} of them', {m: fmt(checks?.skipped ?? 0, 1), n: left})}`}
+          {fixed === 1 ? tr('1 place driven another way so the body fits') : tr('{n} places driven another way so the body fits', {n: fixed})}
+          {skipped > 0 && `, ${tr('{m} m of loops and lanes left out there', {m: fmt(skipped, 1)})}`}
         </span>
-      ) : (
-        <span className={styles.dim}>{tr('The body fits everywhere.')}</span>
       )}
+      {left > 0 && (
+        <span className={styles.warningText}>
+          {left === 1 ? tr("1 place left out, the body doesn't fit there at all") : tr("{n} places left out, the body doesn't fit there at all", {n: left})}
+        </span>
+      )}
+      {fixed + left === 0 && <span className={styles.dim}>{tr('The body fits everywhere.')}</span>}
       {(checks?.turns.length ?? 0) > 0 && <span className={styles.dim}>{tr('{n} turns still in the field of lanes', {n: checks!.turns.length})}</span>}
       {checks?.warnings.map((w, i) => (
         <span key={i} className={styles.dim}>
