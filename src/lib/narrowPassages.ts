@@ -27,8 +27,9 @@ export type Narrow = {
 // the planner's distances for all areas (edge_margin, obstacle_margin) and the mower's width (robot_width), m
 export type Margins = {edge: number; obstacle: number; width: number};
 
-// room to steer through a gap, on top of the distances
-export const STEER = 0.1;
+// room to steer through a gap, on top of the distances. A rule of thumb, it depends on how slanted the path comes in:
+// the planner drove through 7.7 cm between the lines with both distances 0, not with 2.7 cm left for the middle
+export const STEER = 0.05;
 // closer than this the lines touch, it's drawn shut on purpose
 const SHUT = 0.01;
 

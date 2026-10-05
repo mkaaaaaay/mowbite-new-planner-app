@@ -19,7 +19,7 @@ describe('narrowPassages', () => {
     expect(n).toMatchObject({kind: 'narrow', areaId: 'table', otherId: 'lawn', edge: true});
     expect(n.gap).toBeCloseTo(0.08);
     // the two distances and room to steer
-    expect(n.need).toBeCloseTo(0.25);
+    expect(n.need).toBeCloseTo(0.2);
     expect(n.at.x).toBeCloseTo(0.04);
   });
 
@@ -35,7 +35,7 @@ describe('narrowPassages', () => {
     expect(found).toHaveLength(1);
     expect(found[0]).toMatchObject({areaId: 'a', otherId: 'b', edge: false});
     expect(found[0].gap).toBeCloseTo(0.15);
-    expect(found[0].need).toBeCloseTo(0.3);
+    expect(found[0].need).toBeCloseTo(0.25);
     expect(found[0].at.x).toBeCloseTo(5.075);
   });
 
