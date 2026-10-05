@@ -45,7 +45,7 @@ const COUNTED = [/^\d+ places? driven another way where the body would stick out
 // what the collision mode found (stats.body_fit, stats.headland_turns, warnings, body_space), nothing from a planner
 // without it
 export function readChecks(answer: PlanAnswer): PlanChecks | undefined {
-  const fit = (answer.stats?.body_fit ?? null) as {places?: unknown; fixed?: unknown; left?: unknown; skipped_m?: unknown} | null;
+  const fit = (answer.stats?.body_fit ?? null) as {places?: unknown; fixed?: unknown; left?: unknown; skipped_m?: unknown; jumps?: unknown} | null;
   const head = (answer.stats?.headland_turns ?? null) as {places?: unknown} | null;
   const space = (answer.body_space ?? null) as {outlines?: unknown; holes?: unknown} | null;
   const warnings = (Array.isArray(answer.warnings) ? answer.warnings : []).filter(
@@ -63,6 +63,7 @@ export function readChecks(answer: PlanAnswer): PlanChecks | undefined {
     fixed: typeof fit?.fixed === 'number' ? fit.fixed : places.length,
     left: typeof fit?.left === 'number' ? fit.left : 0,
     skipped: typeof fit?.skipped_m === 'number' ? fit.skipped_m : 0,
+    jumps: xys(fit?.jumps),
     turns: xys(head?.places),
     warnings,
   };

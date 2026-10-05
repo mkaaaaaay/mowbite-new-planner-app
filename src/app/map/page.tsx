@@ -551,6 +551,7 @@ function MapEditor() {
                 bodySpace={realPlan?.checks?.space}
                 fitPlaces={realPlan?.checks?.places}
                 turnPlaces={realPlan?.checks?.turns}
+                jumpPlaces={realPlan?.checks?.jumps}
                 focus={spot ?? undefined}
               />
             )}

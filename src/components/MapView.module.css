@@ -628,6 +628,15 @@
   fill-opacity: 0.25;
 }
 
+/* the path jumps there, OpenMower drives the way on its own */
+.jumpPlace {
+  pointer-events: none;
+  fill: none;
+  stroke: #ff3b3b;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
 /* clean stripes: a turn that still happens in the field of lanes */
 .turnPlace {
   pointer-events: none;

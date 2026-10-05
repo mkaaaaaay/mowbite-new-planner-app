@@ -25,7 +25,7 @@ describe('readChecks', () => {
     const plan = readPlan({
       paths: [],
       stats: {
-        body_fit: {fixed: 2, left: 1, skipped_m: 1.25, places: [[1, 2, 0], [3, 4, 1.25], ['x']], jumps: [], tries: 3},
+        body_fit: {fixed: 2, left: 1, skipped_m: 1.25, places: [[1, 2, 0], [3, 4, 1.25], ['x']], jumps: [[3, 4]], tries: 3},
         headland_turns: {turns_in_field: 1, places: [[5, 6]], crossings: 0},
       },
       warnings: [
@@ -48,6 +48,7 @@ describe('readChecks', () => {
       fixed: 2,
       left: 1,
       skipped: 1.25,
+      jumps: [{x: 3, y: 4}],
       turns: [{x: 5, y: 6}],
       // the lines for the counts come from the counts
       warnings: ['the area is too narrow somewhere'],

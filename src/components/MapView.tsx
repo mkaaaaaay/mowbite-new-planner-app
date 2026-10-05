@@ -78,6 +78,8 @@ interface MapViewProps {
   bodySpace?: Point[][];
   fitPlaces?: {x: number; y: number; m: number}[];
   turnPlaces?: Point[];
+  // where the path jumps, a cross each
+  jumpPlaces?: Point[];
   // start zoomed in around this point instead of showing the whole map
   focus?: Point;
   // zoom and position are kept under this key while the app runs, e.g. across a visit to the settings
@@ -314,6 +316,7 @@ export default function MapView({
   bodySpace,
   fitPlaces,
   turnPlaces,
+  jumpPlaces,
   focus,
   viewKey,
   onClickEmpty,
@@ -1262,6 +1265,11 @@ export default function MapView({
       {fitPlaces?.map((p, i) => {
         const [x, y] = toScreen(p.x, p.y);
         return <circle key={'fit' + i} className={p.m > 0 ? styles.fitSkip : styles.fitPlace} cx={x} cy={y} r={0.4 * scale} />;
+      })}
+      {jumpPlaces?.map((p, i) => {
+        const [x, y] = toScreen(p.x, p.y);
+        const r = 0.35 * scale;
+        return <path key={'jump' + i} className={styles.jumpPlace} d={`M ${x - r} ${y - r} L ${x + r} ${y + r} M ${x - r} ${y + r} L ${x + r} ${y - r}`} />;
       })}
       {body &&
         bodySpots?.map((s, i) => {

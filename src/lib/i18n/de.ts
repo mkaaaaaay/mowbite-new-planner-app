@@ -900,6 +900,8 @@ const de: Record<string, string> = {
   "Collision check off: the plan stays as it comes.": "Kollisionsprüfung aus: der Plan bleibt, wie er ist.",
   "{n} places driven another way so the body fits": "{n} Stellen anders gefahren, damit der Körper passt",
   "1 place driven another way so the body fits": "1 Stelle anders gefahren, damit der Körper passt",
+  "The path jumps at 1 place (cross on the map). OpenMower drives the way between the parts itself, without checking the body: it may go straight through a narrow place. Larger distances to obstacles usually help.": "Der Plan springt an 1 Stelle (Kreuz auf der Karte). Den Weg zwischen den Teilen fährt OpenMower selbst, ohne den Körper zu prüfen: Er kann dabei quer durch eine Engstelle fahren. Größere Abstände zu Hindernissen helfen meist.",
+  "The path jumps at {n} places (crosses on the map). OpenMower drives the way between the parts itself, without checking the body: it may go straight through a narrow place. Larger distances to obstacles usually help.": "Der Plan springt an {n} Stellen (Kreuze auf der Karte). Den Weg zwischen den Teilen fährt OpenMower selbst, ohne den Körper zu prüfen: Er kann dabei quer durch eine Engstelle fahren. Größere Abstände zu Hindernissen helfen meist.",
   "{m} m of loops and lanes left out there": "dabei {m} m Schleifen und Bahnen ausgelassen",
   "1 place left out, the body doesn't fit there at all": "1 Stelle ausgelassen, dort passt der Körper gar nicht durch",
   "{n} places left out, the body doesn't fit there at all": "{n} Stellen ausgelassen, dort passt der Körper gar nicht durch",

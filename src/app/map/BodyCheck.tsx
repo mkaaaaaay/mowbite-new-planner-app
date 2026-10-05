@@ -93,6 +93,13 @@ export function PlanChecks({checks, on}: {checks: Checks | undefined; on: boolea
         </span>
       )}
       {fixed + left === 0 && <span className={styles.dim}>{tr('The body fits everywhere.')}</span>}
+      {(checks?.jumps.length ?? 0) > 0 && (
+        <div className={styles.warning}>
+          {checks!.jumps.length === 1
+            ? tr("The path jumps at 1 place (cross on the map). OpenMower drives the way between the parts itself, without checking the body: it may go straight through a narrow place. Larger distances to obstacles usually help.")
+            : tr("The path jumps at {n} places (crosses on the map). OpenMower drives the way between the parts itself, without checking the body: it may go straight through a narrow place. Larger distances to obstacles usually help.", {n: checks!.jumps.length})}
+        </div>
+      )}
       {(checks?.turns.length ?? 0) > 0 && <span className={styles.dim}>{tr('{n} turns still in the field of lanes', {n: checks!.turns.length})}</span>}
       {checks?.warnings.map((w, i) => (
         <span key={i} className={styles.dim}>

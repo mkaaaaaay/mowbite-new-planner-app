@@ -45,6 +45,8 @@ export interface PlanChecks {
   fixed: number;
   left: number;
   skipped: number;
+  // where the path jumps: OpenMower drives the way between the parts itself, without the body checked
+  jumps: Point[];
   // clean stripes: where it still had to turn in the field of lanes
   turns: Point[];
   warnings: string[];
