@@ -159,7 +159,8 @@ a.pillButton {
   color: var(--text-secondary);
 }
 
-.field input {
+.field input,
+.field select {
   padding: 8px 10px;
   border-radius: 8px;
   border: 1px solid var(--card-border);

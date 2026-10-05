@@ -5,10 +5,13 @@ import {
   BODY_SETTINGS,
   bodyFrom,
   loadPlannerSettings,
+  modelOf,
+  MOWER_MODELS,
   savePlannerSettings,
   usePlannerSettings,
   type BodySetting,
   type MowerBody,
+  type MowerSizes,
 } from '@/lib/mowerBody';
 import {RpcError} from '@/lib/rpc';
 import {useEffect, useState} from 'react';
@@ -41,12 +44,32 @@ function formFrom(settings: Record<string, {value: unknown}> | undefined): Form 
   return f;
 }
 
+// the planner's names for a model's sizes
+const MODEL_FIELDS = [
+  ['robot_width', 'width'],
+  ['robot_front', 'front'],
+  ['robot_rear', 'rear'],
+  ['mower_width', 'blade'],
+  ['blade_ahead', 'bladeAhead'],
+  ['blade_offset', 'bladeOffset'],
+] as const;
+
+const sizesOf = (f: Form): MowerSizes =>
+  Object.fromEntries(
+    MODEL_FIELDS.map(([key, size]) => {
+      const v = parseFloat(f[key].replace(',', '.'));
+      return [size, Number.isFinite(v) ? v / 100 : undefined];
+    }),
+  );
+
 // the mower from above, heading right, to scale: body, blade, the point it follows
 function Sketch({body}: {body: MowerBody}) {
   const pad = 0.12;
+  // more room on the left, the width is written there
+  const left = pad + 0.06;
   const halfW = Math.max(body.width / 2, body.blade / 2 + Math.abs(body.bladeOffset));
-  const x0 = -body.rear - pad;
-  const w = body.front + body.rear + 2 * pad;
+  const x0 = -body.rear - left;
+  const w = body.front + body.rear + pad + left;
   const h = 2 * halfW + 2 * pad;
   const label = (v: number) => `${Math.round(v * 100)} cm`;
   return (
@@ -75,7 +98,9 @@ function Sketch({body}: {body: MowerBody}) {
 export function MowerBodySettings({styles}: {styles: Styles}) {
   const settings = usePlannerSettings();
   const [form, setForm] = useState<Form>(() => formFrom(settings?.settings));
-  const [state, setState] = useState<{busy?: boolean; error?: string; saved?: boolean; offline?: boolean}>({});
+  const [state, setState] = useState<{busy?: boolean; error?: string; saved?: boolean; offline?: boolean; picked?: boolean}>({});
+  // "other mower" picked while the fields still hold a model's sizes
+  const [other, setOther] = useState(false);
 
   useEffect(() => {
     loadPlannerSettings(true).then(
@@ -107,6 +132,7 @@ export function MowerBodySettings({styles}: {styles: Styles}) {
     settings: Object.fromEntries(BODY_SETTINGS.map((k) => [k, {value: metres(k)} as never])),
   });
   const missing = BODY_SETTINGS.filter((k) => !known[k]);
+  const model = other ? '' : (modelOf(sizesOf(form)) ?? '');
   // a planner from before the body check takes robot_width as "the lines are walls": its centre then keeps half the
   // width off them all the way round, so the width only goes to one that knows the rest too
   const usable = (key: BodySetting) => !!known[key] && (key !== 'robot_width' || (!!known.robot_front && !!known.edges));
@@ -144,7 +170,19 @@ export function MowerBodySettings({styles}: {styles: Styles}) {
 
   const set = (key: keyof Form, value: string) => {
     setForm({...form, [key]: value});
+    setOther(false);
     setState({});
+  };
+
+  // a model fills in its sizes, saving keeps them; the leeway and the curve radius stay
+  const pick = (key: string) => {
+    const m = MOWER_MODELS.find((x) => x.key === key);
+    setOther(!m);
+    if (!m) return;
+    const next = {...form};
+    for (const [field, size] of MODEL_FIELDS) next[field] = cm(m.sizes[size]);
+    setForm(next);
+    setState({picked: true});
   };
 
   return (
@@ -156,6 +194,17 @@ export function MowerBodySettings({styles}: {styles: Styles}) {
         )}
       </p>
       {state.offline && settings === undefined && <span className={styles.error}>{tr('The mower did not answer.')}</span>}
+      <label className={`${styles.field} ${local.model}`}>
+        {tr('Model')}
+        <select value={model} onChange={(e) => pick(e.target.value)}>
+          <option value="">{tr('Other mower: enter the sizes below')}</option>
+          {MOWER_MODELS.map((m) => (
+            <option key={m.key} value={m.key}>
+              {m.label}
+            </option>
+          ))}
+        </select>
+      </label>
       {sketch && <Sketch body={sketch} />}
       <div className={local.grid}>
         {BODY_SETTINGS.map((key) => (
@@ -185,6 +234,7 @@ export function MowerBodySettings({styles}: {styles: Styles}) {
           {state.busy ? tr('Saving…') : tr('Save')}
         </button>
         {state.saved && <span className={styles.dim}>{tr('Saved. It counts from the next plan, an interrupted area starts again.')}</span>}
+        {state.picked && <span className={styles.dim}>{tr('Filled in, save to keep them.')}</span>}
         {state.error && <span className={styles.error}>{state.error}</span>}
       </div>
     </section>

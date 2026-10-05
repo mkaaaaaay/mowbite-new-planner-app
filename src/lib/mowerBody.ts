@@ -238,6 +238,24 @@ export function sizesBody(s: MowerSizes | undefined): MowerBody | null {
   };
 }
 
+// mowers measured on a real one: picking one under Mower sizes fills in the fields
+export const MOWER_MODELS: {key: string; label: string; sizes: Required<MowerSizes>}[] = [
+  // the same body on all three
+  {key: 'yf-nx', label: 'YardForce NX60 / NX80 / NX100', sizes: {width: 0.41, front: 0.43, rear: 0.18, blade: 0.18, bladeAhead: 0.185, bladeOffset: 0}},
+];
+
+// the model with these sizes, to the millimetre
+export function modelOf(s: MowerSizes | undefined): string | null {
+  const b = sizesBody(s);
+  if (!b) return null;
+  const mm = (v: number) => Math.round(v * 1000);
+  const model = MOWER_MODELS.find((m) => {
+    const p = sizesBody(m.sizes)!;
+    return (Object.keys(p) as (keyof MowerBody)[]).every((k) => mm(p[k]) === mm(b[k]));
+  });
+  return model?.key ?? null;
+}
+
 // seconds for one turn of a drawn blade: 2.5 s at 2400 rpm (the real 40 a second would only blur), in half seconds
 // so a wobbling rpm doesn't keep restarting the animation
 export function bladeSeconds(rpm: number): number {
