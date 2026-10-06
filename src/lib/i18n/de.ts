@@ -651,6 +651,8 @@ const de: Record<string, string> = {
   "Filled in, save to keep them.": "Eingetragen, mit Speichern übernehmen.",
   "Outline of the {model}, measured on a photo from straight above. It counts for this model only.": "Kontur des {model}, vermessen auf einem Foto von genau oben. Sie gilt nur für dieses Modell.",
   "A stored outline that is none of the models: pick the model again or enter the sizes.": "Eine gespeicherte Kontur, die zu keinem Modell passt: Modell neu wählen oder Maße eintragen.",
+  "This model has a measured outline.": "Für dieses Modell gibt es eine vermessene Kontur.",
+  "Use it": "Übernehmen",
   "Outline of the {model}, measured on a photo from straight above. It counts for this model only, the planner on the mower checks the rectangle until it knows outlines (newer image).":
     "Kontur des {model}, vermessen auf einem Foto von genau oben. Sie gilt nur für dieses Modell, der Planer auf dem Mäher prüft das Rechteck, bis er Konturen kennt (neueres Image).",
   "Only with the MowBite Planner on the mower (OM_PLANNER=mowbite): it keeps the body clear of the edges and the map shows the mower at its real size. With the slic3r planner the map shows the icon as before.": "Nur mit dem MowBite-Planer auf dem Mäher (OM_PLANNER=mowbite): Er hält die Karosserie von den Kanten fern, und die Karte zeigt den Mäher in echter Größe. Mit dem slic3r-Planer zeigt die Karte das Symbol wie bisher.",

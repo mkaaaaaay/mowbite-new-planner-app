@@ -150,6 +150,8 @@ export function MowerBodySettings({styles}: {styles: Styles}) {
   const outlineModel = outline ? MOWER_MODELS.find((m) => m.outline && JSON.stringify(m.outline) === JSON.stringify(outline)) : undefined;
   const missing = keys.filter((k) => !known[k]);
   const model = other ? '' : (modelOf(sizesOf(form)) ?? '');
+  // a model with a measured outline, while the rectangle is still in use: offered, not put in on its own
+  const offered = !outline ? MOWER_MODELS.find((m) => m.key === model && m.outline) : undefined;
   // a planner from before the body check takes robot_width as "the lines are walls": its centre then keeps half the
   // width off them all the way round, so the width only goes to one that knows the rest too
   const usable = (key: BodySetting) => !!known[key] && (key !== 'robot_width' || (!!known.robot_front && !!known.edges));
@@ -233,6 +235,20 @@ export function MowerBodySettings({styles}: {styles: Styles}) {
       {outline && (
         <p className={styles.dim}>
           {outlineModel ? tr(known.robot_outline ? 'Outline of the {model}, measured on a photo from straight above. It counts for this model only.' : 'Outline of the {model}, measured on a photo from straight above. It counts for this model only, the planner on the mower checks the rectangle until it knows outlines (newer image).', {model: outlineModel.label}) : tr('A stored outline that is none of the models: pick the model again or enter the sizes.')}
+        </p>
+      )}
+      {offered && (
+        <p className={styles.dim}>
+          {tr('This model has a measured outline.')}{' '}
+          <button
+            className={styles.linkButton}
+            onClick={() => {
+              setOutline(offered.outline ?? null);
+              setState({picked: true});
+            }}
+          >
+            {tr('Use it')}
+          </button>
         </p>
       )}
       <div className={local.grid}>
