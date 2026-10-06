@@ -329,6 +329,8 @@ export const BODY_KEYS = [
   'body_tolerance',
   'min_turn_radius',
   'edges',
+  // a list of points (type "points"), set from a model in the same card
+  'robot_outline',
 ];
 
 const DEG = 180 / Math.PI;
