@@ -195,6 +195,13 @@ export const FIELDS: Record<string, Field> = {
     group: 'pattern',
     area: true,
   },
+  headland_corners: {
+    label: 'Corners of the drives along the edge',
+    help: 'With clean stripes: the drives along the outline passes take their corners in a curve, or sharp with a turn on the spot.',
+    group: 'pattern',
+    choices: {rounded: 'Rounded', sharp: 'Sharp'},
+    area: true,
+  },
   edge_margin: {
     label: 'Distance to the edge',
     help: "How far the mower's body keeps off the real edge, everywhere.",
@@ -296,6 +303,7 @@ export const SIMPLE = [
   'lane_spacing_mode',
   'overlap',
   'headland_turns',
+  'headland_corners',
   'edges',
   'perimeter_passes',
   'lane_overlap_passes',

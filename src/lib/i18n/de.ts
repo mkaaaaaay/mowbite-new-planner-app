@@ -948,6 +948,14 @@ const de: Record<string, string> = {
   "Turning on the spot here, the mower would have stuck out past the real edge, by {cm} cm at least.": "Beim Drehen auf der Stelle wäre der Mäher hier über die echte Kante gekommen, um mindestens {cm} cm.",
   "The planner drives another way there.": "Der Planer fährt dort anders.",
   "The planner drives another way there and leaves {m} m of loops and lanes out.": "Der Planer fährt dort anders und lässt {m} m Schleifen und Bahnen weg.",
+  "Corners of the drives along the edge": "Ecken der Randfahrten",
+  "With clean stripes: the drives along the outline passes take their corners in a curve, or sharp with a turn on the spot.": "Mit sauberem Muster: Die Fahrten entlang der Randrunden nehmen ihre Ecken im Bogen oder eckig mit Drehen auf der Stelle.",
+  "Corners along the edge": "Ecken der Randfahrten",
+  "How the drives along the outline passes take their corners: in a curve, gentle on the lawn, or sharp with a turn on the spot.": "Wie die Fahrten entlang der Randrunden ihre Ecken nehmen: im Bogen, das schont den Rasen, oder eckig mit Drehen auf der Stelle.",
+  "Sharp: it turns on the spot at the corners.": "Eckig: An den Ecken dreht er auf der Stelle.",
+  "Rounded: the corners are driven in a curve.": "Abgerundet: Die Ecken fährt er im Bogen.",
+  "Rounded": "abgerundet",
+  "Sharp": "eckig",
 };
 
 export default de;

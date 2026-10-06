@@ -338,6 +338,25 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
             {toggle('headland_turns')}
           </Row>
         )}
+        {/* only with clean stripes and the mower's sizes, the planner leaves it out otherwise */}
+        {has('headland_corners') && effective('headland_turns') === true && sized && (
+          <Row
+            label={tr('Corners along the edge')}
+            help={tr('How the drives along the outline passes take their corners: in a curve, gentle on the lawn, or sharp with a turn on the spot.')}
+            note={effective('headland_corners') === 'sharp' ? tr('Sharp: it turns on the spot at the corners.') : tr('Rounded: the corners are driven in a curve.')}
+          >
+            <Choice
+              options={[
+                ['rounded', tr('Rounded')],
+                ['sharp', tr('Sharp')],
+              ]}
+              value={value('headland_corners')}
+              like={like(global('headland_corners') === 'sharp' ? tr('Sharp') : tr('Rounded'))}
+              disabled={state.busy}
+              onChange={(v) => void save('headland_corners', v)}
+            />
+          </Row>
+        )}
       </Section>
 
       <Section
