@@ -7,11 +7,13 @@ import {
   loadPlannerSettings,
   modelOf,
   MOWER_MODELS,
+  outlineOf,
   savePlannerSettings,
   usePlannerSettings,
   type BodySetting,
   type MowerBody,
   type MowerSizes,
+  type Outline,
 } from '@/lib/mowerBody';
 import {RpcError} from '@/lib/rpc';
 import {useEffect, useState} from 'react';
@@ -76,7 +78,11 @@ function Sketch({body}: {body: MowerBody}) {
     <svg className={local.sketch} viewBox={`${x0} ${-halfW - pad} ${w} ${h}`} role="img" aria-label={tr('The mower from above')}>
       {/* y flipped: left of the mower is up */}
       <g transform="scale(1 -1)">
-        <rect className={local.body} x={-body.rear} y={-body.width / 2} width={body.front + body.rear} height={body.width} rx={0.03} />
+        {body.outline ? (
+          <polygon className={local.body} points={body.outline.map(([ahead, left]) => `${ahead},${left}`).join(' ')} />
+        ) : (
+          <rect className={local.body} x={-body.rear} y={-body.width / 2} width={body.front + body.rear} height={body.width} rx={0.03} />
+        )}
         {body.blade > 0 && <circle className={local.blade} cx={body.bladeAhead} cy={body.bladeOffset} r={body.blade / 2} />}
         <line className={local.axle} x1={0} y1={-body.width / 2} x2={0} y2={body.width / 2} />
         <circle className={local.point} cx={0} cy={0} r={0.015} />
@@ -101,10 +107,15 @@ export function MowerBodySettings({styles}: {styles: Styles}) {
   const [state, setState] = useState<{busy?: boolean; error?: string; saved?: boolean; offline?: boolean; picked?: boolean}>({});
   // "other mower" picked while the fields still hold a model's sizes
   const [other, setOther] = useState(false);
+  // the body's real contour (robot_outline), from a model; typed sizes go back to the rectangle
+  const [outline, setOutline] = useState<Outline | null>(() => outlineOf(settings?.settings.robot_outline?.value) ?? null);
 
   useEffect(() => {
     loadPlannerSettings(true).then(
-      (s) => setForm(formFrom(s?.settings)),
+      (s) => {
+        setForm(formFrom(s?.settings));
+        setOutline(outlineOf(s?.settings.robot_outline?.value) ?? null);
+      },
       () => setState({offline: true}),
     );
   }, []);
@@ -131,9 +142,12 @@ export function MowerBodySettings({styles}: {styles: Styles}) {
     const v = parseFloat(form[key].replace(',', '.'));
     return Number.isFinite(v) ? v / 100 : null;
   };
-  const sketch = bodyFrom({
+  const rect = bodyFrom({
     settings: Object.fromEntries(BODY_SETTINGS.map((k) => [k, {value: metres(k)} as never])),
   });
+  const sketch = rect && outline ? {...rect, outline} : rect;
+  // the model whose outline it is, named so a wrong pick shows
+  const outlineModel = outline ? MOWER_MODELS.find((m) => m.outline && JSON.stringify(m.outline) === JSON.stringify(outline)) : undefined;
   const missing = keys.filter((k) => !known[k]);
   const model = other ? '' : (modelOf(sizesOf(form)) ?? '');
   // a planner from before the body check takes robot_width as "the lines are walls": its centre then keeps half the
@@ -157,6 +171,10 @@ export function MowerBodySettings({styles}: {styles: Styles}) {
       }
       if (!s.stored || typeof s.value !== 'number' || Math.abs(s.value - v) > 1e-6) changes[key] = Math.round(v * 10000) / 10000;
     }
+    // the contour only to a planner that knows it, null is the rectangle again
+    if (known.robot_outline && JSON.stringify(outlineOf(known.robot_outline.value) ?? null) !== JSON.stringify(outline)) {
+      changes.robot_outline = outline;
+    }
     if (!Object.keys(changes).length) {
       setState({saved: true});
       return;
@@ -165,6 +183,7 @@ export function MowerBodySettings({styles}: {styles: Styles}) {
     try {
       const s = await savePlannerSettings(changes);
       setForm(formFrom(s.settings));
+      setOutline(outlineOf(s.settings.robot_outline?.value) ?? null);
       setState({saved: true});
     } catch (e) {
       setState({error: e instanceof RpcError && e.code !== 'timeout' ? e.message : tr('The mower did not answer.')});
@@ -173,6 +192,7 @@ export function MowerBodySettings({styles}: {styles: Styles}) {
 
   const set = (key: keyof Form, value: string) => {
     setForm({...form, [key]: value});
+    if (key === 'robot_width' || key === 'robot_front' || key === 'robot_rear') setOutline(null);
     setOther(false);
     setState({});
   };
@@ -185,6 +205,7 @@ export function MowerBodySettings({styles}: {styles: Styles}) {
     const next = {...form};
     for (const [field, size] of MODEL_FIELDS) next[field] = cm(m.sizes[size]);
     setForm(next);
+    setOutline(m.outline ?? null);
     setState({picked: true});
   };
 
@@ -209,6 +230,11 @@ export function MowerBodySettings({styles}: {styles: Styles}) {
         </select>
       </label>
       {sketch && <Sketch body={sketch} />}
+      {outline && (
+        <p className={styles.dim}>
+          {outlineModel ? tr(known.robot_outline ? 'Outline of the {model}, measured on a photo from straight above. It counts for this model only.' : 'Outline of the {model}, measured on a photo from straight above. It counts for this model only, the planner on the mower checks the rectangle until it knows outlines (newer image).', {model: outlineModel.label}) : tr('A stored outline that is none of the models: pick the model again or enter the sizes.')}
+        </p>
+      )}
       <div className={local.grid}>
         {keys.map((key) => (
           <label key={key} className={styles.field}>
