@@ -3,16 +3,17 @@
 import {PlannerField, turnRadiusWarning} from '@/components/PlannerSettings';
 import {tr} from '@/lib/i18n';
 import {usePlannerSettings} from '@/lib/mowerBody';
-import {FIELDS, fromInput, toInput} from '@/lib/plannerFields';
+import {FIELDS, fromInput, SIMPLE, toInput} from '@/lib/plannerFields';
 import {useState} from 'react';
 import type {AreaProperties, UpdateArea} from './editing';
 import local from './AreaPlanner.module.css';
 import styles from './page.module.css';
 
-// MowBite Planner settings for the selected area only (its planner property), on top of the ones for all areas.
-// Only with the MowBite Planner on the mower, the plan preview shows them right away.
+// MowBite Planner settings for the selected area only (its planner property), on top of the ones for all areas: the
+// ones the planner menu above doesn't have. Only with the MowBite Planner on the mower, the plan preview shows them
+// right away, they're saved with the map.
 
-const AREA_KEYS = Object.keys(FIELDS).filter((k) => FIELDS[k].area);
+const AREA_KEYS = Object.keys(FIELDS).filter((k) => FIELDS[k].area && !SIMPLE.includes(k));
 
 export function AreaPlanner({
   properties,
@@ -47,9 +48,9 @@ export function AreaPlanner({
 
   return (
     <div className={styles.mowSettings} onBlurCapture={() => setDrafts({})} onFocusCapture={remember}>
-      <span className={styles.cardTitle}>{tr('Planner for this area')}</span>
+      <span className={styles.cardTitle}>{tr('More planner settings')}</span>
       <p className={local.note}>
-        {tr('Empty or "like all areas": the setting for all areas (Settings, Planner). Counts from the next plan.')}
+        {tr('Empty or "like all areas": the value for all areas. Saved with the map, the preview shows it right away.')}
       </p>
       {keys.map((key) => {
         const setting = all[key];

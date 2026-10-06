@@ -2,14 +2,15 @@
 
 import {tr} from '@/lib/i18n';
 import {loadPlannerSettings, savePlannerSettings, usePlannerSettings, type PlannerSetting} from '@/lib/mowerBody';
-import {BODY_KEYS, COUNTED, DROPPED, DROPPED_CHOICES, FIELDS, fromInput, GROUPS, toInput, type Field, type Group} from '@/lib/plannerFields';
+import {BODY_KEYS, COUNTED, DROPPED, DROPPED_CHOICES, FIELDS, fromInput, GROUPS, SIMPLE, toInput, type Field, type Group} from '@/lib/plannerFields';
 import {RpcError} from '@/lib/rpc';
 import {useEffect, useState} from 'react';
 import InfoTip from './InfoTip';
 import local from './PlannerSettings.module.css';
 
-// The MowBite Planner's settings for all areas (planner.settings / planner.settings.set). Built from what the planner
-// reports, so a newer planner's settings show up too. An area can set some of them for itself (mowing settings).
+// The MowBite Planner's settings for all areas the planner menu at the map doesn't have (planner.settings /
+// planner.settings.set), each saved right away. Built from what the planner reports, so a newer planner's settings
+// show up too. An area can set some of them for itself (Planner for this area).
 
 type Styles = Record<string, string>;
 type Value = string | string[];
@@ -187,13 +188,19 @@ export function turnRadiusWarning(all: Record<string, PlannerSetting>, radius: u
 
 export function PlannerSettings({styles}: {styles: Styles}) {
   const settings = usePlannerSettings();
-  // only what was changed here, the rest shows what the planner has
+  // numbers as typed, saved once the field is left
   const [form, setForm] = useState<Record<string, Value>>({});
-  const [state, setState] = useState<{busy?: boolean; error?: string; saved?: boolean}>({});
+  const [state, setState] = useState<{busy?: boolean; error?: string; saved?: number; confirm?: boolean}>({});
 
   useEffect(() => {
     loadPlannerSettings(true).catch(() => {});
   }, []);
+  // "saved" shows for a moment
+  useEffect(() => {
+    if (!state.saved) return;
+    const t = setTimeout(() => setState((s) => (s.saved === state.saved ? {} : s)), 2500);
+    return () => clearTimeout(t);
+  }, [state.saved]);
 
   if (settings === null) {
     return (
@@ -207,46 +214,37 @@ export function PlannerSettings({styles}: {styles: Styles}) {
 
   const all = settings.settings;
   const shown = {...formFrom(all), ...form};
-  const keys = Object.keys(all).filter((k) => !BODY_KEYS.includes(k) && !DROPPED.includes(k) && all[k].settable);
+  // the ones the planner menu above doesn't have
+  const keys = Object.keys(all).filter((k) => !BODY_KEYS.includes(k) && !DROPPED.includes(k) && !SIMPLE.includes(k) && all[k].settable);
   const fixed = Object.keys(all).filter((k) => !all[k].settable && !COUNTED.includes(k));
   const group = (k: string): Group => FIELDS[k]?.group ?? 'fine';
   const advanced = (k: string) => !FIELDS[k] || !!FIELDS[k].advanced;
+  const typed = (k: string) => !['list', 'string', 'boolean'].includes(all[k].type);
 
-  const changes = () => {
-    const out: Record<string, unknown> = {};
-    for (const k of keys) {
-      if (form[k] === undefined) continue;
-      const c = change(k, all[k], form[k]);
-      if (c.error) return {error: c.error};
-      if ('value' in c) out[k] = c.value;
-    }
-    return {out};
-  };
-  const pending = changes();
-  const dirty = !!pending.out && Object.keys(pending.out).length > 0;
-
-  const save = async () => {
-    if (pending.error || !pending.out) return setState({error: pending.error});
+  const store = async (values: Record<string, unknown>) => {
     setState({busy: true});
     try {
-      await savePlannerSettings(pending.out);
-      setForm({});
-      setState({saved: true});
+      await savePlannerSettings(values);
+      setState((s) => ({saved: (s.saved ?? 0) + 1}));
     } catch (e) {
       setState({error: e instanceof RpcError && e.code !== 'timeout' ? e.message : tr('The mower did not answer.')});
     }
+  };
+  // a choice right away, a number once its field is left
+  const commit = (k: string, v: Value) => {
+    const c = change(k, all[k], v);
+    if (c.error) return setState({error: c.error});
+    const rest = {...form};
+    delete rest[k];
+    setForm(rest);
+    if ('value' in c) void store({[k]: c.value});
   };
   const reset = async () => {
+    if (!state.confirm) return setState({confirm: true});
     const stored = keys.filter((k) => all[k].stored);
-    if (!stored.length) return;
-    setState({busy: true});
-    try {
-      await savePlannerSettings(Object.fromEntries(stored.map((k) => [k, null])));
-      setForm({});
-      setState({saved: true});
-    } catch (e) {
-      setState({error: e instanceof RpcError && e.code !== 'timeout' ? e.message : tr('The mower did not answer.')});
-    }
+    setForm({});
+    if (stored.length) await store(Object.fromEntries(stored.map((k) => [k, null])));
+    else setState({});
   };
 
   // choices and lists take the whole row
@@ -257,20 +255,26 @@ export function PlannerSettings({styles}: {styles: Styles}) {
       ? tr("This mower's OpenMower doesn't back up along the plan yet (back_up_with_plan), the planner leaves it out.")
       : null;
   // a number as typed, the planner's value while it's empty or not a number
-  const typed = (k: string) => {
+  const typedNumber = (k: string) => {
     const v = fromInput(FIELDS[k], String(shown[k] ?? ''));
     return typeof v === 'number' ? v : undefined;
   };
   const field = (k: string) => (
-    <div key={k} className={[wide(k) ? local.wide : '', all[k].stored ? local.changed : ''].filter(Boolean).join(' ') || undefined}>
+    <div
+      key={k}
+      className={[wide(k) ? local.wide : '', all[k].stored ? local.changed : ''].filter(Boolean).join(' ') || undefined}
+      onBlur={() => typed(k) && form[k] !== undefined && commit(k, form[k])}
+      onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLElement).blur()}
+    >
       <PlannerField
         name={k}
         setting={all[k]}
         value={shown[k] ?? ''}
         styles={styles}
         unavailable={unavailable(k)}
-        warning={k === 'turn_radius' ? turnRadiusWarning(all, typed(k)) : null}
+        warning={k === 'turn_radius' ? turnRadiusWarning(all, typedNumber(k)) : null}
         onChange={(v) => {
+          if (!typed(k)) return commit(k, v);
           setForm({...form, [k]: v});
           setState({});
         }}
@@ -281,15 +285,11 @@ export function PlannerSettings({styles}: {styles: Styles}) {
   return (
     <section className={styles.card}>
       <div className={styles.cardHead}>
-        <h2>{tr('Planner')}</h2>
-        <button className={styles.pillButton} onClick={reset} disabled={state.busy || !keys.some((k) => all[k].stored)}>
-          {tr('Reset all')}
-        </button>
+        <h2>{tr('More planner settings')}</h2>
+        {state.saved && <span className={styles.dim}>✓ {tr('saved')}</span>}
       </div>
       <p className={styles.dim}>
-        {tr(
-          "How the MowBite Planner on the mower plans every area. An area can set some of them for itself in its mowing settings. Lane spacing, outline passes and offset come from OpenMower's mowing settings.",
-        )}
+        {tr('For all areas, each one is saved on the mower right away. An area can set some of them for itself (Planner for this area).')}
       </p>
       {settings.own_angle && (
         <p className={styles.error}>
@@ -307,7 +307,7 @@ export function PlannerSettings({styles}: {styles: Styles}) {
         );
       })}
       <details className={local.more}>
-        <summary>{tr('More settings')}</summary>
+        <summary>{tr('Rarely needed')}</summary>
         {GROUPS.map((g) => {
           const more = keys.filter((k) => group(k) === g.key && advanced(k));
           if (!more.length) return null;
@@ -325,11 +325,15 @@ export function PlannerSettings({styles}: {styles: Styles}) {
         )}
       </details>
       <div className={local.actions}>
-        <button className={styles.pillButton} onClick={save} disabled={state.busy || !dirty}>
-          {state.busy ? tr('Saving…') : tr('Save')}
+        <button
+          className={styles.pillButton}
+          onClick={() => void reset()}
+          onBlur={() => state.confirm && setState({})}
+          disabled={state.busy || !keys.some((k) => all[k].stored)}
+        >
+          {state.confirm ? tr('Really reset these?') : tr('Reset these to the defaults')}
         </button>
-        {state.saved && !dirty && <span className={styles.dim}>{tr('Saved. It counts from the next plan, an interrupted area starts again.')}</span>}
-        {(state.error || pending.error) && <span className={styles.error}>{state.error ?? pending.error}</span>}
+        {state.error && <span className={styles.error}>{state.error}</span>}
       </div>
     </section>
   );

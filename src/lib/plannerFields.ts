@@ -124,7 +124,7 @@ export const FIELDS: Record<string, Field> = {
     help: "How many outline passes the lanes reach into. Empty: OpenMower's (outline_overlap_count).",
     group: 'loops',
     step: 1,
-    advanced: true,
+    area: true,
   },
   perimeter_offset: {
     label: 'Outline offset',
@@ -134,6 +134,14 @@ export const FIELDS: Record<string, Field> = {
     step: 0.05,
     advanced: true,
   },
+  // in the planner menu, here for their names
+  edges: {
+    label: 'Lines of the map',
+    help: 'What the lines of the map stand for: driven along the edge with the mower, or the wall itself.',
+    group: 'loops',
+    choices: {recorded: 'Driven along the edge', hard: 'The wall itself'},
+  },
+  min_turn_radius: {label: 'Tightest curve', help: 'Tighter curves turn on the spot instead.', group: 'turns', unit: 'm', step: 0.05},
   perimeter_order: {
     label: 'Outline passes',
     help: 'Before the lanes, or after them: last mows over the marks the turns leave at the edge.',
@@ -274,6 +282,24 @@ export const DROPPED = ['mode'];
 export const DROPPED_CHOICES: Record<string, string[]> = {fill_pattern: ['auto']};
 // counted by the planner itself, shown with the angle turned further (simple menu), not in the lists
 export const COUNTED = ['angle_steps'];
+// in the planner menu at the map (PlannerSimple), the lists for experts leave them out
+export const SIMPLE = [
+  'fill_pattern',
+  'lane_spacing_mode',
+  'overlap',
+  'headland_turns',
+  'edges',
+  'perimeter_passes',
+  'lane_overlap_passes',
+  'edge_margin',
+  'obstacle_margin',
+  'turn_on_spot',
+  'min_turn_radius',
+  'allow_reverse',
+  'body_fit',
+  'angle_increment',
+  'angle_increment_every',
+];
 
 // shown in their own card (Mower sizes)
 export const BODY_KEYS = [

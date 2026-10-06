@@ -2,21 +2,24 @@
 
 import {tr} from '@/lib/i18n';
 import {resetPlannerAngle, savePlannerSettings, usePlannerSettings, type PlannerSetting} from '@/lib/mowerBody';
+import {ownSettings, type OpenMowerOwn} from '@/lib/plannerOwn';
 import {RpcError} from '@/lib/rpc';
-import {useState} from 'react';
+import {useEffect, useState} from 'react';
 import InfoTip from './InfoTip';
 import local from './PlannerSimple.module.css';
 
 // The planner's settings that matter for a garden, in a few sections: the pattern, the edge, obstacles, turns and the
 // direction turning further. For all areas (saved on the planner right away) or for one area (its planner property,
-// saved with the map, nothing set: like all areas). A setting shows only when the planner on the mower has it. The
-// rest is the planner's defaults, for experts in the full lists.
+// saved with the map, nothing set: like all areas), with what the area sets itself at the top. A setting shows only
+// when the planner on the mower has it. The rest is in the lists for experts below (SIMPLE: the ones that are here).
 
 type Area = {
   own: Record<string, unknown>;
   set: (key: string, value: unknown) => void;
-  // the area's OpenMower outline passes, what counts for it while the planner has none of its own
-  passes?: number;
+  // OpenMower's own values of the area (outline_count and co.), they count while the planner has none of its own
+  openmower?: OpenMowerOwn;
+  // everything of its own back to like all areas
+  clear?: () => void;
   // the outline passes in its plan (automatic: what the planner worked out for it)
   planned?: number;
 };
@@ -92,7 +95,13 @@ function Section({title, note, children}: {title: string; note?: string | null; 
 export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; toolWidth?: number; omIncrement?: number}) {
   const planner = usePlannerSettings();
   const [drafts, setDrafts] = useState<Record<string, string>>({});
-  const [state, setState] = useState<{busy?: boolean; error?: string}>({});
+  const [state, setState] = useState<{busy?: boolean; error?: string; saved?: number}>({});
+  // "saved" shows for a moment
+  useEffect(() => {
+    if (!state.saved) return;
+    const t = setTimeout(() => setState((s) => (s.saved === state.saved ? {} : s)), 2500);
+    return () => clearTimeout(t);
+  }, [state.saved]);
   if (!planner) return null;
   const all: Record<string, PlannerSetting> = planner.settings;
   const has = (k: string) => !!all[k]?.settable;
@@ -106,7 +115,7 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
     setState({busy: true});
     try {
       await savePlannerSettings({[k]: v === undefined ? null : v});
-      setState({});
+      setState((s) => ({saved: (s.saved ?? 0) + 1}));
     } catch (e) {
       setState({error: e instanceof RpcError && e.code !== 'timeout' ? e.message : tr('The mower did not answer.')});
     }
@@ -175,7 +184,16 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
   const passes = effective('perimeter_passes');
   const autoPasses = all.perimeter_passes?.auto_value;
   const passesAuto = autoPasses !== undefined && passes === autoPasses;
-  const passesShown = area && area.own.perimeter_passes === undefined ? (area.passes ?? global('perimeter_passes')) : passes;
+  // OpenMower's per area counts below 0 are its "the global one"
+  const omCount = (k: 'outline_count' | 'outline_overlap_count') => {
+    const v = area?.openmower?.[k];
+    return typeof v === 'number' && v >= 0 ? v : undefined;
+  };
+  const passesShown = area && area.own.perimeter_passes === undefined ? (omCount('outline_count') ?? global('perimeter_passes')) : passes;
+  // the outline passes the lanes reach into: the area's own, OpenMower's of the area, the one for all areas
+  const overlapOwn = area ? area.own.lane_overlap_passes : global('lane_overlap_passes');
+  const overlapElse = area ? (omCount('outline_overlap_count') ?? global('lane_overlap_passes')) : all.lane_overlap_passes?.default;
+  const reach = typeof overlapOwn === 'number' ? overlapOwn : typeof overlapElse === 'number' ? overlapElse : 0;
   // the angle turned further after finished mows: by this step every nth mow (an area's own step: its mowing settings)
   const step = typeof global('angle_increment') === 'number' ? (global('angle_increment') as number) : 0;
   const every = typeof global('angle_increment_every') === 'number' ? (global('angle_increment_every') as number) : 1;
@@ -204,6 +222,7 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
         ? undefined
         : Math.max(first, 0.5 * width - Math.abs(num('blade_offset') ?? 0)) - 0.5 * blade;
   const spot = effective('turn_on_spot') === true;
+  const own = area ? ownSettings(area.own, area.openmower ?? {}, all, collision) : [];
 
   // for all areas, at a glance
   const summary = area
@@ -218,7 +237,40 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
 
   return (
     <div className={local.simple}>
-      {summary && summary.length > 0 && <p className={local.summary}>{summary.join(' · ')}</p>}
+      {area ? (
+        <div className={local.summary}>
+          <p className={local.line}>{tr('Only for this area. Saved with the map ("Save map"), the preview shows it right away.')}</p>
+          {own.length ? (
+            <>
+              <p className={local.line}>
+                {tr('This area sets itself:')}{' '}
+                {own.map((o, i) => (
+                  <span key={o.key} className={o.idle ? local.idle : undefined}>
+                    {i > 0 && ' · '}
+                    {o.label}: {o.value}
+                    {o.idle && ` (${o.idle})`}
+                  </span>
+                ))}
+              </p>
+              {area.clear && (
+                <div className={local.inline}>
+                  <button onClick={area.clear}>{tr('All like all areas')}</button>
+                </div>
+              )}
+            </>
+          ) : (
+            <p className={local.line}>{tr('Everything like all areas.')}</p>
+          )}
+        </div>
+      ) : (
+        <div className={local.summary}>
+          {summary && summary.length > 0 && <p className={local.line}>{summary.join(' · ')}</p>}
+          <p className={local.line}>
+            {tr('For all areas, each change is saved on the mower right away.')}
+            {state.saved && <strong className={local.saved}> ✓ {tr('saved')}</strong>}
+          </p>
+        </div>
+      )}
 
       <Section title={tr('Pattern')}>
         {has('fill_pattern') && (
@@ -352,6 +404,32 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
                   },
                 )}
             </div>
+          </Row>
+        )}
+        {has('lane_overlap_passes') && effective('fill_pattern') !== 'concentric' && (
+          <Row
+            label={tr('Overlapping passes')}
+            help={tr(
+              'How many outline passes the lanes reach into: they start that many passes further out, so nothing stays standing between the passes and the lanes. Not with rings.',
+            )}
+            note={
+              reach === 0
+                ? tr('The lanes start after the last outline pass.')
+                : reach === 1
+                  ? tr('The lanes reach 1 pass further out.')
+                  : tr('The lanes reach {n} passes further out.', {n: reach})
+            }
+          >
+            {numberField(
+              'overlapPasses',
+              typeof overlapOwn === 'number' ? String(overlapOwn) : '',
+              typeof overlapElse === 'number' ? String(overlapElse) : '0',
+              tr('rounds'),
+              (text) => {
+                const n = parse(text);
+                void save('lane_overlap_passes', n === null ? undefined : Math.max(0, Math.round(n)));
+              },
+            )}
           </Row>
         )}
         {has('edge_margin') && (

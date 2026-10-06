@@ -124,8 +124,8 @@ export function MowerBodySettings({styles}: {styles: Styles}) {
 
   const known = settings?.settings ?? {};
   // a planner that checks the body in every plan (it has edge_margin) keeps distances of its own, body_tolerance isn't
-  // a leeway past the edges there
-  const keys = BODY_SETTINGS.filter((k) => !(k === 'body_tolerance' && known.edge_margin));
+  // a leeway past the edges there. The tightest curve is in the planner menu (Tightest curve)
+  const keys = BODY_SETTINGS.filter((k) => !(k === 'body_tolerance' && known.edge_margin) && k !== 'min_turn_radius');
   // what the form would make of it: the sketch follows the fields while typing
   const metres = (key: BodySetting) => {
     const v = parseFloat(form[key].replace(',', '.'));

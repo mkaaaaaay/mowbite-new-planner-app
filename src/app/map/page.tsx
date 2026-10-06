@@ -653,7 +653,7 @@ function MapEditor() {
                     <Fold id="plannerAll" title={tr('Planner for all areas')}>
                       <PlannerSimple toolWidth={toolWidth} omIncrement={angleIncrement} />
                       <details className={simpleStyles.expert}>
-                        <summary>{tr('All settings (expert)')}</summary>
+                        <summary>{tr('More settings (expert)')}</summary>
                         <div className={styles.foldCards}>
                           <PlannerSettings styles={settingsStyles} />
                         </div>
@@ -755,7 +755,14 @@ function MapEditor() {
                     omIncrement={angleIncrement}
                     area={{
                       own: selectedArea.properties.planner ?? {},
-                      passes: selectedArea.properties.outline_count,
+                      openmower: {
+                        outline_count: selectedArea.properties.outline_count,
+                        outline_overlap_count: selectedArea.properties.outline_overlap_count,
+                        outline_offset: selectedArea.properties.outline_offset,
+                      },
+                      // OpenMower's values go too, they'd count over the ones for all areas
+                      clear: () =>
+                        updateProperties({planner: undefined, outline_count: undefined, outline_overlap_count: undefined, outline_offset: undefined}),
                       planned: plan?.chosen?.perimeter_passes,
                       set: (key, value) => {
                         const own = {...(selectedArea.properties.planner ?? {})};
@@ -766,7 +773,7 @@ function MapEditor() {
                     }}
                   />
                   <details className={simpleStyles.expert}>
-                    <summary>{tr('All settings (expert)')}</summary>
+                    <summary>{tr('More settings (expert)')}</summary>
                     <AreaPlanner properties={selectedArea.properties} update={updateProperties} remember={remember} />
                   </details>
                   {body &&

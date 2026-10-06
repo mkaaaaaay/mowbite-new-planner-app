@@ -157,6 +157,7 @@ export default function MowSettings({
   return (
     <div className={styles.mowSettings}>
       <span className={styles.cardTitle}>{tr('Mowing settings')}</span>
+      <p className={styles.dim}>{tr('Only for this area, saved with the map ("Save map").')}</p>
       {!byPlanner &&
         number(
           'outline_count',

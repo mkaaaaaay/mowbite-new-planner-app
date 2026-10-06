@@ -5,8 +5,11 @@
   padding: 4px 14px 14px;
 }
 
-/* what's set for all areas, at a glance */
+/* what's set for all areas, or what an area sets itself, at a glance */
 .summary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   margin: 0;
   padding: 8px 10px;
   border-radius: 10px;
@@ -14,6 +17,20 @@
   font-size: 12px;
   line-height: 1.5;
   color: var(--text-secondary);
+}
+
+.line {
+  margin: 0;
+}
+
+/* set, but it doesn't count */
+.idle {
+  opacity: 0.6;
+}
+
+.saved {
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .section {

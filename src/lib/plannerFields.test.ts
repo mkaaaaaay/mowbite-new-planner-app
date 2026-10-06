@@ -22,6 +22,7 @@ describe('planner fields', () => {
       'fill_pattern',
       'narrow_parts',
       'angle_strategy',
+      'lane_overlap_passes',
       'perimeter_order',
       'turn_radius',
       'turn_on_spot',
