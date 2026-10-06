@@ -82,7 +82,7 @@ export function PlanChecks({checks, on}: {checks: Checks | undefined; on: boolea
     <div className={styles.bodyCheck}>
       <span className={styles.dim}>{tr('Collision check on, with the mower sizes set.')}</span>
       {fixed > 0 && (
-        <span className={styles.warningText}>
+        <span className={styles.dim}>
           {fixed === 1 ? tr('1 place driven another way so the body fits') : tr('{n} places driven another way so the body fits', {n: fixed})}
           {skipped > 0 && `, ${tr('{m} m of loops and lanes left out there', {m: fmt(skipped, 1)})}`}
         </span>

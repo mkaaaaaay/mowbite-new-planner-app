@@ -1258,17 +1258,18 @@ export default function MapView({
     >
       {renderContent(k)}
       {bodySpace && bodySpace.length > 0 && <path className={styles.bodySpace} d={pathOf(bodySpace, drawn, true)} />}
+      {/* small and the same size at any zoom, the plan stays readable under them */}
       {turnPlaces?.map((p, i) => {
         const [x, y] = toScreen(p.x, p.y);
-        return <circle key={'turn' + i} className={styles.turnPlace} cx={x} cy={y} r={0.3 * scale} />;
+        return <circle key={'turn' + i} className={styles.turnPlace} cx={x} cy={y} r={4 * k} />;
       })}
       {fitPlaces?.map((p, i) => {
         const [x, y] = toScreen(p.x, p.y);
-        return <circle key={'fit' + i} className={p.m > 0 ? styles.fitSkip : styles.fitPlace} cx={x} cy={y} r={0.4 * scale} />;
+        return <circle key={'fit' + i} className={p.m > 0 ? styles.fitSkip : styles.fitPlace} cx={x} cy={y} r={4 * k} />;
       })}
       {jumpPlaces?.map((p, i) => {
         const [x, y] = toScreen(p.x, p.y);
-        const r = 0.35 * scale;
+        const r = 6 * k;
         return <path key={'jump' + i} className={styles.jumpPlace} d={`M ${x - r} ${y - r} L ${x + r} ${y + r} M ${x - r} ${y + r} L ${x + r} ${y - r}`} />;
       })}
       {body &&

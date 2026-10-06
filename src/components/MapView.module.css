@@ -606,17 +606,18 @@
   pointer-events: none;
   fill: none;
   stroke: var(--c-body);
-  stroke-opacity: 0.6;
+  stroke-opacity: 0.4;
   stroke-width: 1;
   stroke-dasharray: 2 3;
 }
 
-/* a place driven another way so the body fits, filled where a piece is left out */
+/* a place driven another way so the body fits, a dot where a piece is left out */
 .fitPlace,
 .fitSkip {
   pointer-events: none;
   stroke: #fbc02d;
-  stroke-width: 2;
+  stroke-opacity: 0.8;
+  stroke-width: 1;
 }
 
 .fitPlace {
@@ -625,7 +626,7 @@
 
 .fitSkip {
   fill: #fbc02d;
-  fill-opacity: 0.25;
+  fill-opacity: 0.55;
 }
 
 /* the path jumps there, OpenMower drives the way on its own */
@@ -633,7 +634,7 @@
   pointer-events: none;
   fill: none;
   stroke: #ff3b3b;
-  stroke-width: 3;
+  stroke-width: 2;
   stroke-linecap: round;
 }
 
@@ -642,6 +643,6 @@
   pointer-events: none;
   fill: none;
   stroke: var(--accent);
-  stroke-width: 1.5;
-  stroke-dasharray: 3 2;
+  stroke-opacity: 0.8;
+  stroke-width: 1;
 }
