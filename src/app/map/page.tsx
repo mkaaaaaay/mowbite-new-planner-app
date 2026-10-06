@@ -16,7 +16,7 @@ import {cutOut, generateId, splitByPath} from '@/lib/splitPolygon';
 import {useSearchParams} from 'next/navigation';
 import {Suspense, useEffect, useMemo, useState} from 'react';
 import styles from './page.module.css';
-import {tr, useLang} from '@/lib/i18n';
+import {fmt, tr, useLang} from '@/lib/i18n';
 import MapBackups, {backupLabel} from '@/components/MapBackups';
 import {deleteBackup, listBackups, loadBackup, saveBackup, type BackupInfo} from '@/lib/backups';
 import AreaCard from './AreaCard';
@@ -163,6 +163,34 @@ function MapEditor() {
   const [bodySpots, setBodySpots] = useState<BodySpot[] | null>(null);
   const {toolWidth, angleOffset, offsetIsAbsolute, angleIncrement, shownArea, autoAngle, touchAngle, mismatch, realPlan, plan, stripes, planLength, planRequest} =
     useMowPlan({params, liveMap, shownMap, selectedAreaId, pastJobs, areaProps, showStripes, previewCorrection, draggingPoint});
+  // a place of the collision check picked on the map: the body where it would have stuck out, for the plan it's from
+  const [fitPick, setFitPick] = useState<{plan: unknown; index: number} | null>(null);
+  const fitPlace = fitPick && fitPick.plan === realPlan ? realPlan?.checks?.places[fitPick.index] : undefined;
+  const pickedText = (() => {
+    const pose = fitPlace?.pose;
+    if (!pose) return null;
+    const own = selectedArea?.properties.planner ?? {};
+    const value = (k: string) => {
+      const v = own[k] ?? plannerSettings?.settings[k]?.value;
+      return typeof v === 'number' ? v : 0;
+    };
+    // past the real edge only where it's more than the larger of the distances, the place doesn't tell which one
+    const kept = Math.max(value('edge_margin'), value('obstacle_margin')) + (pose.spin ? value('spin_margin') : 0);
+    const past = pose.d > kept + 0.005;
+    const cm = Math.max(1, Math.round((past ? pose.d - kept : pose.d) * 100));
+    const what = past
+      ? pose.spin
+        ? tr('Turning on the spot here, the mower would have stuck out past the real edge, by {cm} cm at least.', {cm})
+        : tr('Here the mower would have stuck out past the real edge, by {cm} cm at least.', {cm})
+      : pose.spin
+        ? tr('Turning on the spot here, the mower would have come {cm} cm into the safety distance.', {cm})
+        : tr('Here the mower would have come {cm} cm into the safety distance.', {cm});
+    const then =
+      fitPlace!.m > 0
+        ? tr('The planner drives another way there and leaves {m} m of loops and lanes out.', {m: fmt(fitPlace!.m, 1)})
+        : tr('The planner drives another way there.');
+    return `${what} ${then}`;
+  })();
 
   const globalValue = (key: string) => {
     const v = numParam(params, PARAM.mowerLogic(key));
@@ -490,6 +518,14 @@ function MapEditor() {
                 </button>
               </div>
             )}
+            {pickedText && (
+              <div className={styles.previewBar}>
+                <span>{pickedText}</span>
+                <button onClick={() => setFitPick(null)} aria-label="close">
+                  ×
+                </button>
+              </div>
+            )}
             {spot && (
               <div className={styles.spot}>
                 <span>{spot.msg || tr('Marked spot')}</span>
@@ -550,6 +586,8 @@ function MapEditor() {
                 bodySpots={bodySpots ?? undefined}
                 bodySpace={realPlan?.checks?.space}
                 fitPlaces={realPlan?.checks?.places}
+                fitPicked={fitPlace ? fitPick!.index : null}
+                onFitPick={(index) => setFitPick(index === null ? null : {plan: realPlan, index})}
                 turnPlaces={realPlan?.checks?.turns}
                 jumpPlaces={realPlan?.checks?.jumps}
                 focus={spot ?? undefined}

@@ -217,6 +217,14 @@ export const FIELDS: Record<string, Field> = {
     group: 'turns',
     area: true,
   },
+  spin_margin: {
+    label: 'Extra distance when turning',
+    help: 'Where the mower turns on the spot, and just before, its body keeps this much more distance: it often wanders a little while turning.',
+    group: 'turns',
+    unit: 'm',
+    step: 0.01,
+    area: true,
+  },
   smooth_spins: {
     label: 'Loop out instead of turning on the spot',
     help: 'Where a path would turn on the spot by a lot, the mower drives a small loop instead, where it fits. Gentler on the lawn.',
@@ -297,6 +305,7 @@ export const SIMPLE = [
   'min_turn_radius',
   'allow_reverse',
   'body_fit',
+  'spin_margin',
   'angle_increment',
   'angle_increment_every',
 ];

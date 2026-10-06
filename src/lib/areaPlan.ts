@@ -45,16 +45,31 @@ const COUNTED = [/^\d+ places? driven another way where the body would stick out
 // what the collision mode found (stats.body_fit, stats.headland_turns, warnings, body_space), nothing from a planner
 // without it
 export function readChecks(answer: PlanAnswer): PlanChecks | undefined {
-  const fit = (answer.stats?.body_fit ?? null) as {places?: unknown; fixed?: unknown; left?: unknown; skipped_m?: unknown; jumps?: unknown} | null;
+  const fit = (answer.stats?.body_fit ?? null) as {
+    places?: unknown;
+    poses?: unknown;
+    fixed?: unknown;
+    left?: unknown;
+    skipped_m?: unknown;
+    jumps?: unknown;
+  } | null;
   const head = (answer.stats?.headland_turns ?? null) as {places?: unknown} | null;
   const space = (answer.body_space ?? null) as {outlines?: unknown; holes?: unknown} | null;
   const warnings = (Array.isArray(answer.warnings) ? answer.warnings : []).filter(
     (w): w is string => typeof w === 'string' && !(fit && COUNTED.some((r) => r.test(w))),
   );
   if (!fit && !head && !space && !warnings.length) return undefined;
-  const places = (Array.isArray(fit?.places) ? fit.places : []).flatMap((p: unknown) => {
+  // poses: one for each place, in the same order
+  const poses = Array.isArray(fit?.poses) ? fit.poses : [];
+  const places = (Array.isArray(fit?.places) ? fit.places : []).flatMap((p: unknown, i: number) => {
     const at = xy(p);
-    return at ? [{...at, m: typeof (p as number[])[2] === 'number' ? (p as number[])[2] : 0}] : [];
+    if (!at) return [];
+    const q = poses[i];
+    const pose =
+      Array.isArray(q) && q.slice(0, 4).length === 4 && q.slice(0, 4).every((v) => typeof v === 'number')
+        ? {x: q[0] as number, y: q[1] as number, yaw: q[2] as number, d: q[3] as number, spin: q[4] === 1 || q[4] === true}
+        : undefined;
+    return [{...at, m: typeof (p as number[])[2] === 'number' ? (p as number[])[2] : 0, ...(pose ? {pose} : {})}];
   });
   const rings = [space?.outlines, space?.holes].flatMap((list) => (Array.isArray(list) ? list.map(xys) : [])).filter((r) => r.length >= 3);
   return {

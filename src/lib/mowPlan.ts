@@ -36,11 +36,22 @@ export interface MowPlan {
 
 // The MowBite Planner with the mower's body checks every plan: where the body would stick out past a real edge or into
 // what to keep off, it drives another way and leaves a little out where nothing fits
+// where the body would have stuck out furthest on the plan as it came: d m into the space it keeps free (spin: turning on
+// the spot, the extra distance for that counts too)
+export interface FitPose {
+  x: number;
+  y: number;
+  yaw: number;
+  d: number;
+  spin: boolean;
+}
+
 export interface PlanChecks {
   // where the body may go: the real edges less the distances kept, outlines and holes
   space?: Point[][];
-  // places driven another way, m: meters of loops and lanes left out there (0: only driven differently)
-  places: {x: number; y: number; m: number}[];
+  // places driven another way, m: meters of loops and lanes left out there (0: only driven differently), with where the
+  // body would have stuck out when the planner tells
+  places: {x: number; y: number; m: number; pose?: FitPose}[];
   // how many were driven another way, how many left out as nothing fits there (the path jumps over them), m left out
   fixed: number;
   left: number;

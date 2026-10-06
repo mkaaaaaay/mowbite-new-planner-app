@@ -55,6 +55,17 @@ describe('readChecks', () => {
     });
   });
 
+  it('takes where the body would have stuck out, one pose for each place', () => {
+    const checks = readChecks({
+      paths: [],
+      stats: {body_fit: {fixed: 2, left: 0, skipped_m: 0, places: [['x'], [1, 2, 0], [3, 4, 0.5]], poses: [[0, 0, 0, 0], [1.1, 2.1, 0.5, 0.03, 1], 'bad']}},
+    });
+    expect(checks?.places).toEqual([
+      {x: 1, y: 2, m: 0, pose: {x: 1.1, y: 2.1, yaw: 0.5, d: 0.03, spin: true}},
+      {x: 3, y: 4, m: 0.5},
+    ]);
+  });
+
   it('has nothing from a planner without it', () => {
     expect(readChecks({paths: []})).toBeUndefined();
     expect(readPlan({paths: []}).checks).toBeUndefined();

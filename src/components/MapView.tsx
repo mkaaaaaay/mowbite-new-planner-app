@@ -6,6 +6,7 @@ import {useEasedPose, type Pose} from '@/hooks/useEasedPose';
 import {containsPoint, polygonArea} from '@/lib/geometry';
 import {settingsStore, type Settings} from '@/lib/settings';
 import {bladeSeconds, bodyShape, realEdges, swathEnd, swathGroups, swathPieces, useMowerBody, type MowerBody} from '@/lib/mowerBody';
+import type {FitPose} from '@/lib/mowPlan';
 import {useSensorValue} from '@/hooks/useMowerSensors';
 import {dockIcon, drawMower, mowerIcon} from './mapIcons';
 import {availableSources, imageryTiles, type Datum} from '@/lib/imagery';
@@ -76,7 +77,10 @@ interface MapViewProps {
   // the planner's collision mode: where the body may go, the places it drove another way (m: left out there) and
   // where clean stripes still turned in the field
   bodySpace?: Point[][];
-  fitPlaces?: {x: number; y: number; m: number}[];
+  fitPlaces?: {x: number; y: number; m: number; pose?: FitPose}[];
+  // the place picked: the body drawn where it would have stuck out. A place with a pose can be picked, again: none
+  fitPicked?: number | null;
+  onFitPick?: (index: number | null) => void;
   turnPlaces?: Point[];
   // where the path jumps, a cross each
   jumpPlaces?: Point[];
@@ -315,6 +319,8 @@ export default function MapView({
   bodySpots,
   bodySpace,
   fitPlaces,
+  fitPicked,
+  onFitPick,
   turnPlaces,
   jumpPlaces,
   focus,
@@ -1263,9 +1269,33 @@ export default function MapView({
         const [x, y] = toScreen(p.x, p.y);
         return <circle key={'turn' + i} className={styles.turnPlace} cx={x} cy={y} r={4 * k} />;
       })}
+      {body &&
+        fitPlaces?.[fitPicked ?? -1]?.pose &&
+        (() => {
+          const pose = fitPlaces[fitPicked!].pose!;
+          const shape = bodyShape(body, pose.x, pose.y, pose.yaw);
+          return <polygon className={styles.fitBody} points={shape.corners.map((c) => toScreen(c.x, c.y).join(',')).join(' ')} />;
+        })()}
       {fitPlaces?.map((p, i) => {
-        const [x, y] = toScreen(p.x, p.y);
-        return <circle key={'fit' + i} className={p.m > 0 ? styles.fitSkip : styles.fitPlace} cx={x} cy={y} r={4 * k} />;
+        // where the body would have stuck out, once the planner tells
+        const [x, y] = toScreen(p.pose?.x ?? p.x, p.pose?.y ?? p.y);
+        const dot = <circle className={[p.m > 0 ? styles.fitSkip : styles.fitPlace, i === fitPicked ? styles.fitPicked : ''].join(' ')} cx={x} cy={y} r={4 * k} />;
+        if (!p.pose || !onFitPick) return <g key={'fit' + i}>{dot}</g>;
+        return (
+          <g
+            key={'fit' + i}
+            className={styles.fitPick}
+            // a dot is small for a finger: a bigger round to hit, the map doesn't pan or deselect from it
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onFitPick(i === fitPicked ? null : i);
+            }}
+          >
+            <circle cx={x} cy={y} r={16 * k} fill="transparent" stroke="none" />
+            {dot}
+          </g>
+        );
       })}
       {jumpPlaces?.map((p, i) => {
         const [x, y] = toScreen(p.x, p.y);

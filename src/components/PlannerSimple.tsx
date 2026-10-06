@@ -455,7 +455,7 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
         </Section>
       )}
 
-      {(has('turn_on_spot') || has('min_turn_radius') || has('body_fit') || (has('allow_reverse') && planner.can_back_up === true)) && (
+      {(has('turn_on_spot') || has('min_turn_radius') || has('body_fit') || has('spin_margin') || (has('allow_reverse') && planner.can_back_up === true)) && (
         <Section title={tr('Turns')}>
           {has('turn_on_spot') && (
             <Row
@@ -466,6 +466,17 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
               note={spot ? tr('On the spot: quicker, harder on the lawn.') : tr('In a loop: gentle on the lawn.')}
             >
               {either('turn_on_spot', tr('In a loop'), tr('On the spot'))}
+            </Row>
+          )}
+          {has('spin_margin') && (
+            <Row
+              label={tr('Extra distance when turning')}
+              help={tr(
+                'Where the mower turns on the spot, and on the last bit before, its body keeps this much more distance to the edge and to obstacles: it often wanders a little while turning.',
+              )}
+              note={tr('On top of the distances to the edge and to obstacles.')}
+            >
+              {cmField('spin_margin')}
             </Row>
           )}
           {has('min_turn_radius') && (

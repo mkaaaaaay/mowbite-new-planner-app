@@ -30,6 +30,7 @@ describe('planner fields', () => {
       'edge_margin',
       'obstacle_margin',
       'body_fit',
+      'spin_margin',
       'route_order',
       'bend_max_gap',
     ]);

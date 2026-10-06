@@ -629,6 +629,27 @@
   fill-opacity: 0.55;
 }
 
+/* a place that can be picked: the body where it would have stuck out shows */
+.fitPick {
+  pointer-events: all;
+  cursor: pointer;
+}
+
+.fitPicked {
+  stroke: #fff;
+  stroke-opacity: 1;
+  stroke-width: 2;
+}
+
+.fitBody {
+  pointer-events: none;
+  fill: #ff5252;
+  fill-opacity: 0.22;
+  stroke: #ff5252;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
 /* the path jumps there, OpenMower drives the way on its own */
 .jumpPlace {
   pointer-events: none;

@@ -938,6 +938,16 @@ const de: Record<string, string> = {
   "{what} (OpenMower)": "{what} (OpenMower)",
   "no effect, the area's planner setting counts": "wirkt nicht, der Planer-Wert der Fläche gilt",
   "Only for this area, saved with the map (\"Save map\").": "Gilt nur für diese Fläche, wird mit der Karte gespeichert („Karte speichern“).",
+  "Extra distance when turning": "Zusatzabstand beim Drehen",
+  "Where the mower turns on the spot, and just before, its body keeps this much more distance: it often wanders a little while turning.": "Wo der Mäher auf der Stelle dreht, und kurz davor, hält sein Körper so viel mehr Abstand: Beim Drehen wandert er oft ein Stück.",
+  "Where the mower turns on the spot, and on the last bit before, its body keeps this much more distance to the edge and to obstacles: it often wanders a little while turning.": "Wo der Mäher auf der Stelle dreht, und auf dem letzten Stück davor, hält sein Körper so viel mehr Abstand zur Kante und zu Hindernissen: Beim Drehen wandert er oft ein Stück.",
+  "On top of the distances to the edge and to obstacles.": "Zusätzlich zu den Abständen zur Kante und zu Hindernissen.",
+  "Here the mower would have come {cm} cm into the safety distance.": "Hier wäre der Mäher {cm} cm in den Sicherheitsabstand gekommen.",
+  "Turning on the spot here, the mower would have come {cm} cm into the safety distance.": "Beim Drehen auf der Stelle wäre der Mäher hier {cm} cm in den Sicherheitsabstand gekommen.",
+  "Here the mower would have stuck out past the real edge, by {cm} cm at least.": "Hier wäre der Mäher über die echte Kante gekommen, um mindestens {cm} cm.",
+  "Turning on the spot here, the mower would have stuck out past the real edge, by {cm} cm at least.": "Beim Drehen auf der Stelle wäre der Mäher hier über die echte Kante gekommen, um mindestens {cm} cm.",
+  "The planner drives another way there.": "Der Planer fährt dort anders.",
+  "The planner drives another way there and leaves {m} m of loops and lanes out.": "Der Planer fährt dort anders und lässt {m} m Schleifen und Bahnen weg.",
 };
 
 export default de;
