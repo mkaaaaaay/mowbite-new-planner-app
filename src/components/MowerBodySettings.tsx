@@ -242,7 +242,12 @@ export function MowerBodySettings({styles}: {styles: Styles}) {
           {outlineModel ? tr(known.robot_outline ? 'Outline of the {model} plus 1 cm, measured on a photo from straight above. It counts for this model only.' : 'Outline of the {model}, measured on a photo from straight above. It counts for this model only, the planner on the mower checks the rectangle until it knows outlines (newer image).', {model: outlineModel.label}) : tr('A stored outline that is none of the models: pick the model again or enter the sizes.')}
         </p>
       )}
-      {offered && (
+      {offered && !known.robot_outline && (
+        <p className={styles.dim}>
+          {tr('This model has a measured outline. The planner on the mower does not know outlines yet (newer image), it checks the rectangle until then.')}
+        </p>
+      )}
+      {offered && known.robot_outline && (
         <p className={styles.dim}>
           {tr('This model has a measured outline.')}{' '}
           <button
@@ -283,7 +288,13 @@ export function MowerBodySettings({styles}: {styles: Styles}) {
         <button className={styles.pillButton} onClick={save} disabled={state.busy || !settings}>
           {state.busy ? tr('Saving…') : tr('Save')}
         </button>
-        {state.saved && <span className={styles.dim}>{tr('Saved. It counts from the next plan, an interrupted area starts again.')}</span>}
+        {state.saved && (
+          <span className={styles.dim}>
+            {outline && !known.robot_outline
+              ? tr('Saved, without the outline: the planner on the mower does not know outlines yet.')
+              : tr('Saved. It counts from the next plan, an interrupted area starts again.')}
+          </span>
+        )}
         {state.picked && <span className={styles.dim}>{tr('Filled in, save to keep them.')}</span>}
         {state.error && <span className={styles.error}>{state.error}</span>}
       </div>
