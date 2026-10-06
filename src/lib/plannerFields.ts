@@ -141,7 +141,7 @@ export const FIELDS: Record<string, Field> = {
     group: 'loops',
     choices: {recorded: 'Driven along the edge', hard: 'The wall itself'},
   },
-  min_turn_radius: {label: 'Tightest curve', help: 'Tighter curves turn on the spot instead.', group: 'turns', unit: 'm', step: 0.05},
+  min_turn_radius: {label: 'Tightest curve', help: "Turns, loops and drives aren't tighter, kinks in tight spots may be rounded tighter.", group: 'turns', unit: 'm', step: 0.05},
   perimeter_order: {
     label: 'Outline passes',
     help: 'Before the lanes, or after them: last mows over the marks the turns leave at the edge.',

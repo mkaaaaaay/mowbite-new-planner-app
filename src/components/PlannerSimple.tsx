@@ -502,7 +502,7 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
             <Row
               label={tr('Tightest curve')}
               help={tr(
-                'The tighter a curve, the slower the inner wheel turns, at the tightest it stands still or turns backwards and tears the lawn. Where no curve this wide fits, the mower turns on the spot instead. At half the distance between the drive wheels the inner wheel just stands still: take a little more.',
+                "Turns, loops and drives aren't tighter than this. Where no curve this wide fits, a kink in a tight spot is rounded tighter instead of turning on the spot. The tighter a curve, the slower the inner wheel turns, at the tightest it stands still or turns backwards and tears the lawn. At half the distance between the drive wheels the inner wheel just stands still: take a little more.",
               )}
               note={tr('Larger is gentler on the lawn, needs more room at the edge.')}
             >

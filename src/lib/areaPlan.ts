@@ -52,6 +52,7 @@ export function readChecks(answer: PlanAnswer): PlanChecks | undefined {
     left?: unknown;
     skipped_m?: unknown;
     jumps?: unknown;
+    unchecked?: unknown;
   } | null;
   const head = (answer.stats?.headland_turns ?? null) as {places?: unknown} | null;
   const space = (answer.body_space ?? null) as {outlines?: unknown; holes?: unknown} | null;
@@ -79,6 +80,8 @@ export function readChecks(answer: PlanAnswer): PlanChecks | undefined {
     left: typeof fit?.left === 'number' ? fit.left : 0,
     skipped: typeof fit?.skipped_m === 'number' ? fit.skipped_m : 0,
     jumps: xys(fit?.jumps),
+    // a list of points, or the one point itself
+    unchecked: Array.isArray(fit?.unchecked) && typeof fit.unchecked[0] === 'number' ? [xy(fit.unchecked)].filter((p): p is Point => !!p) : xys(fit?.unchecked),
     turns: xys(head?.places),
     warnings,
   };

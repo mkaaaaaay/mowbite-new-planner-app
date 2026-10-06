@@ -49,10 +49,17 @@ describe('readChecks', () => {
       left: 1,
       skipped: 1.25,
       jumps: [{x: 3, y: 4}],
+      unchecked: [],
       turns: [{x: 5, y: 6}],
       // the lines for the counts come from the counts
       warnings: ['the area is too narrow somewhere'],
     });
+  });
+
+  it('takes where the plan starts or ends without the body checked', () => {
+    expect(readChecks({paths: [], stats: {body_fit: {places: [], unchecked: [[1, 2]]}}})?.unchecked).toEqual([{x: 1, y: 2}]);
+    expect(readChecks({paths: [], stats: {body_fit: {places: [], unchecked: [5, 6]}}})?.unchecked).toEqual([{x: 5, y: 6}]);
+    expect(readChecks({paths: [], stats: {body_fit: {places: []}}})?.unchecked).toEqual([]);
   });
 
   it('takes where the body would have stuck out, one pose for each place', () => {

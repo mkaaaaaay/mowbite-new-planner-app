@@ -589,7 +589,7 @@ function MapEditor() {
                 fitPicked={fitPlace ? fitPick!.index : null}
                 onFitPick={(index) => setFitPick(index === null ? null : {plan: realPlan, index})}
                 turnPlaces={realPlan?.checks?.turns}
-                jumpPlaces={realPlan?.checks?.jumps}
+                jumpPlaces={realPlan?.checks ? [...realPlan.checks.jumps, ...realPlan.checks.unchecked] : undefined}
                 focus={spot ?? undefined}
               />
             )}

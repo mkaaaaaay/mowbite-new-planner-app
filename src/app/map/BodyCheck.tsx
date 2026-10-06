@@ -93,6 +93,15 @@ export function PlanChecks({checks, on}: {checks: Checks | undefined; on: boolea
         </span>
       )}
       {fixed + left === 0 && <span className={styles.dim}>{tr('The body fits everywhere.')}</span>}
+      {(checks?.unchecked.length ?? 0) > 0 && (
+        <div className={styles.warning}>
+          {checks!.unchecked.length === 1
+            ? tr('The plan starts or ends at 1 place without the body checked (cross on the map). OpenMower drives from or to there itself, without checking the body.')
+            : tr('The plan starts or ends at {n} places without the body checked (crosses on the map). OpenMower drives from or to there itself, without checking the body.', {
+                n: checks!.unchecked.length,
+              })}
+        </div>
+      )}
       {(checks?.jumps.length ?? 0) > 0 && (
         <div className={styles.warning}>
           {checks!.jumps.length === 1

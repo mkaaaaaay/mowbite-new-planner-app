@@ -880,7 +880,6 @@ const de: Record<string, string> = {
   "On the spot": "Auf der Stelle",
   "In a loop": "Schleife",
   "Tightest curve": "Kleinster Bogen",
-  "The tighter a curve, the slower the inner wheel turns, at the tightest it stands still or turns backwards and tears the lawn. Where no curve this wide fits, the mower turns on the spot instead. At half the distance between the drive wheels the inner wheel just stands still: take a little more.": "Je enger ein Bogen, desto langsamer dreht das innere Rad, am engsten steht es oder dreht rückwärts und reißt den Rasen auf. Wo kein so weiter Bogen passt, dreht der Mäher stattdessen auf der Stelle. Beim halben Abstand der Antriebsräder steht das innere Rad gerade still: etwas mehr nehmen.",
   "Larger is gentler on the lawn, needs more room at the edge.": "Größer schont den Rasen, braucht mehr Platz am Rand.",
   "Possible because OpenMower on this mower backs up along the plan. Where no turn fits going forwards (a tight corner), the mower backs up briefly instead of turning on the spot.": "Geht, weil OpenMower auf diesem Mäher entlang des Plans zurücksetzt. Wo vorwärts keine Wende passt (eine enge Ecke), setzt der Mäher kurz zurück, statt auf der Stelle zu drehen.",
   "A three-point turn in tight corners.": "In engen Ecken eine Dreipunktwende.",
@@ -956,6 +955,9 @@ const de: Record<string, string> = {
   "Rounded: the corners are driven in a curve.": "Abgerundet: Die Ecken fährt er im Bogen.",
   "Rounded": "abgerundet",
   "Sharp": "eckig",
+  "Turns, loops and drives aren't tighter than this. Where no curve this wide fits, a kink in a tight spot is rounded tighter instead of turning on the spot. The tighter a curve, the slower the inner wheel turns, at the tightest it stands still or turns backwards and tears the lawn. At half the distance between the drive wheels the inner wheel just stands still: take a little more.": "Wenden, Schleifen und Fahrten werden nicht enger als das. Wo so ein Bogen nicht passt, rundet der Planer einen Knick an einer engen Stelle enger ab, statt auf der Stelle zu drehen. Je enger ein Bogen, desto langsamer dreht das innere Rad, am engsten steht es still oder dreht rückwärts und reißt den Rasen auf. Beim halben Abstand der Antriebsräder steht das innere Rad gerade still: etwas mehr nehmen.",
+  "The plan starts or ends at 1 place without the body checked (cross on the map). OpenMower drives from or to there itself, without checking the body.": "Der Plan beginnt oder endet an 1 Stelle ohne Körperprüfung (Kreuz auf der Karte). Von dort oder dorthin fährt OpenMower selbst, ohne den Körper zu prüfen.",
+  "The plan starts or ends at {n} places without the body checked (crosses on the map). OpenMower drives from or to there itself, without checking the body.": "Der Plan beginnt oder endet an {n} Stellen ohne Körperprüfung (Kreuze auf der Karte). Von dort oder dorthin fährt OpenMower selbst, ohne den Körper zu prüfen.",
 };
 
 export default de;
