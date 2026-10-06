@@ -288,6 +288,46 @@ export const MOWER_MODELS: {key: string; label: string; sizes: Required<Omit<Mow
 
 const SIZES = ['width', 'front', 'rear', 'blade', 'bladeAhead', 'bladeOffset'] as const;
 
+// what the planner gets on top of a measured outline: it checks the outline as it comes, a photo is good to a centimetre
+export const OUTLINE_LEEWAY = 0.01; // m
+
+// the outline moved outwards by d: every side pushed out along its normal, the corners where the pushed sides meet
+// (pointed), points that end up within 2 mm of the line through their neighbours dropped, to the millimetre
+export function grownOutline(o: Outline, d: number): Outline {
+  const n = o.length;
+  const area = o.reduce((a, [x, y], i) => a + x * o[(i + 1) % n][1] - o[(i + 1) % n][0] * y, 0);
+  const side = area > 0 ? 1 : -1; // counter-clockwise: outwards is to the right of each side
+  const normal = (i: number) => {
+    const [x0, y0] = o[i];
+    const [x1, y1] = o[(i + 1) % n];
+    const len = Math.hypot(x1 - x0, y1 - y0) || 1;
+    return [(side * (y1 - y0)) / len, (side * -(x1 - x0)) / len];
+  };
+  const out: Outline = o.map(([x, y], i) => {
+    const a = normal((i - 1 + n) % n);
+    const b = normal(i);
+    // the corner's direction, as long as its two sides need: d / cos(half the turn)
+    const s = 1 + a[0] * b[0] + a[1] * b[1];
+    if (s < 1e-6) return [x + d * a[0], y + d * a[1]];
+    return [x + (d * (a[0] + b[0])) / s, y + (d * (a[1] + b[1])) / s];
+  });
+  const kept = out.filter((p, i) => {
+    const [ax, ay] = out[(i - 1 + n) % n];
+    const [bx, by] = out[(i + 1) % n];
+    const len = Math.hypot(bx - ax, by - ay) || 1;
+    return Math.abs((by - ay) * (p[0] - ax) - (bx - ax) * (p[1] - ay)) / len >= 0.002;
+  });
+  return kept.map(([x, y]) => [Math.round(x * 1000) / 1000, Math.round(y * 1000) / 1000]);
+}
+
+// a stored outline back to its model's measured one, when it is that one (as measured or grown for the planner)
+export function measuredOutline(o: Outline | undefined): Outline | undefined {
+  if (!o) return undefined;
+  const key = JSON.stringify(o);
+  const m = MOWER_MODELS.find((x) => x.outline && (JSON.stringify(x.outline) === key || JSON.stringify(grownOutline(x.outline, OUTLINE_LEEWAY)) === key));
+  return m?.outline ?? o;
+}
+
 // the model with these sizes, to the millimetre
 export function modelOf(s: MowerSizes | undefined): string | null {
   const b = sizesBody(s);

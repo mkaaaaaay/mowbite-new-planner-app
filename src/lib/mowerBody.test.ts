@@ -4,8 +4,11 @@ import {
   bladeSeconds,
   bodyFrom,
   bodyShape,
+  grownOutline,
+  measuredOutline,
   modelOf,
   MOWER_MODELS,
+  OUTLINE_LEEWAY,
   outlineOf,
   realEdges,
   sizesBody,
@@ -219,6 +222,37 @@ describe('real outline', () => {
     // ahead is +y, left is -x
     expect(north.corners[0].x).toBeCloseTo(0.9);
     expect(north.corners[0].y).toBeCloseTo(2.4);
+  });
+
+  it('grows an outline outwards with pointed corners, either way round', () => {
+    const square: [number, number][] = [
+      [0.1, 0.1],
+      [-0.1, 0.1],
+      [-0.1, -0.1],
+      [0.1, -0.1],
+    ];
+    expect(grownOutline(square, 0.01)).toEqual([
+      [0.11, 0.11],
+      [-0.11, 0.11],
+      [-0.11, -0.11],
+      [0.11, -0.11],
+    ]);
+    expect(grownOutline([...square].reverse(), 0.01)).toEqual([
+      [0.11, -0.11],
+      [-0.11, -0.11],
+      [-0.11, 0.11],
+      [0.11, 0.11],
+    ]);
+  });
+
+  it('finds the model of an outline grown for the planner', () => {
+    for (const m of MOWER_MODELS.filter((x) => x.outline)) {
+      const g = grownOutline(m.outline!, OUTLINE_LEEWAY);
+      expect(Math.max(...g.map(([a]) => a))).toBeCloseTo(m.sizes.front + OUTLINE_LEEWAY, 2);
+      expect(Math.min(...g.map(([a]) => a))).toBeCloseTo(-m.sizes.rear - OUTLINE_LEEWAY, 2);
+      expect(measuredOutline(g)).toEqual(m.outline);
+    }
+    expect(measuredOutline(outline)).toEqual(outline);
   });
 
   it('fits the sizes of the models that have one', () => {

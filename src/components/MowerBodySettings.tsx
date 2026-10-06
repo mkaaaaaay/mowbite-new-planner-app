@@ -7,6 +7,9 @@ import {
   loadPlannerSettings,
   modelOf,
   MOWER_MODELS,
+  measuredOutline,
+  OUTLINE_LEEWAY,
+  grownOutline,
   outlineOf,
   savePlannerSettings,
   usePlannerSettings,
@@ -108,13 +111,14 @@ export function MowerBodySettings({styles}: {styles: Styles}) {
   // "other mower" picked while the fields still hold a model's sizes
   const [other, setOther] = useState(false);
   // the body's real contour (robot_outline), from a model; typed sizes go back to the rectangle
-  const [outline, setOutline] = useState<Outline | null>(() => outlineOf(settings?.settings.robot_outline?.value) ?? null);
+  // the measured one, the planner has it 1 cm larger
+  const [outline, setOutline] = useState<Outline | null>(() => measuredOutline(outlineOf(settings?.settings.robot_outline?.value)) ?? null);
 
   useEffect(() => {
     loadPlannerSettings(true).then(
       (s) => {
         setForm(formFrom(s?.settings));
-        setOutline(outlineOf(s?.settings.robot_outline?.value) ?? null);
+        setOutline(measuredOutline(outlineOf(s?.settings.robot_outline?.value)) ?? null);
       },
       () => setState({offline: true}),
     );
@@ -174,8 +178,9 @@ export function MowerBodySettings({styles}: {styles: Styles}) {
       if (!s.stored || typeof s.value !== 'number' || Math.abs(s.value - v) > 1e-6) changes[key] = Math.round(v * 10000) / 10000;
     }
     // the contour only to a planner that knows it, null is the rectangle again
-    if (known.robot_outline && JSON.stringify(outlineOf(known.robot_outline.value) ?? null) !== JSON.stringify(outline)) {
-      changes.robot_outline = outline;
+    const send = outline ? grownOutline(outline, OUTLINE_LEEWAY) : null;
+    if (known.robot_outline && JSON.stringify(outlineOf(known.robot_outline.value) ?? null) !== JSON.stringify(send)) {
+      changes.robot_outline = send;
     }
     if (!Object.keys(changes).length) {
       setState({saved: true});
@@ -185,7 +190,7 @@ export function MowerBodySettings({styles}: {styles: Styles}) {
     try {
       const s = await savePlannerSettings(changes);
       setForm(formFrom(s.settings));
-      setOutline(outlineOf(s.settings.robot_outline?.value) ?? null);
+      setOutline(measuredOutline(outlineOf(s.settings.robot_outline?.value)) ?? null);
       setState({saved: true});
     } catch (e) {
       setState({error: e instanceof RpcError && e.code !== 'timeout' ? e.message : tr('The mower did not answer.')});
@@ -234,7 +239,7 @@ export function MowerBodySettings({styles}: {styles: Styles}) {
       {sketch && <Sketch body={sketch} />}
       {outline && (
         <p className={styles.dim}>
-          {outlineModel ? tr(known.robot_outline ? 'Outline of the {model}, measured on a photo from straight above. It counts for this model only.' : 'Outline of the {model}, measured on a photo from straight above. It counts for this model only, the planner on the mower checks the rectangle until it knows outlines (newer image).', {model: outlineModel.label}) : tr('A stored outline that is none of the models: pick the model again or enter the sizes.')}
+          {outlineModel ? tr(known.robot_outline ? 'Outline of the {model} plus 1 cm, measured on a photo from straight above. It counts for this model only.' : 'Outline of the {model}, measured on a photo from straight above. It counts for this model only, the planner on the mower checks the rectangle until it knows outlines (newer image).', {model: outlineModel.label}) : tr('A stored outline that is none of the models: pick the model again or enter the sizes.')}
         </p>
       )}
       {offered && (

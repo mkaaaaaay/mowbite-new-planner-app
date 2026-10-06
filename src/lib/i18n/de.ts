@@ -650,6 +650,7 @@ const de: Record<string, string> = {
   "Other mower: enter the sizes below": "Anderer Mäher: Maße unten eintragen",
   "Filled in, save to keep them.": "Eingetragen, mit Speichern übernehmen.",
   "Outline of the {model}, measured on a photo from straight above. It counts for this model only.": "Kontur des {model}, vermessen auf einem Foto von genau oben. Sie gilt nur für dieses Modell.",
+  "Outline of the {model} plus 1 cm, measured on a photo from straight above. It counts for this model only.": "Kontur des {model} plus 1 cm, vermessen auf einem Foto von genau oben. Sie gilt nur für dieses Modell.",
   "A stored outline that is none of the models: pick the model again or enter the sizes.": "Eine gespeicherte Kontur, die zu keinem Modell passt: Modell neu wählen oder Maße eintragen.",
   "This model has a measured outline.": "Für dieses Modell gibt es eine vermessene Kontur.",
   "Use it": "Übernehmen",
