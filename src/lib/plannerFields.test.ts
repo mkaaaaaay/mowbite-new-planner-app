@@ -36,16 +36,4 @@ describe('planner fields', () => {
       'bend_max_gap',
     ]);
   });
-
-  it('warns when the turn radius is under the tightest curve radius', async () => {
-    const {turnRadiusWarning} = await import('@/components/PlannerSettings');
-    const all = {
-      min_turn_radius: {value: 0.3, default: 0, stored: true, type: 'number', settable: true},
-      turn_radius: {value: 0.25, default: 0.25, stored: false, type: 'number', settable: true},
-    };
-    expect(turnRadiusWarning(all, undefined)).toContain('0.3');
-    expect(turnRadiusWarning(all, 0.3)).toBeNull();
-    expect(turnRadiusWarning(all, 0.4)).toBeNull();
-    expect(turnRadiusWarning({...all, min_turn_radius: {...all.min_turn_radius, value: 0}}, 0.1)).toBeNull();
-  });
 });

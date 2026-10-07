@@ -312,6 +312,8 @@ export function useMowPlan({
       const v = value(key);
       return typeof v === 'string' ? v : fallback;
     };
+    const turnRadius = num('turn_radius', 0.25);
+    const turnTypes = Array.isArray(value('turn_types')) ? (value('turn_types') as string[]).filter((t) => t !== 'k_turn') : undefined;
     // mower_logic sends these with every plan (the area's own or its parameters), set in the planner its settings go
     // over mower_logic's parameters (planner.settings then reports them, else mower_logic's), the area's planner
     // settings over everything
@@ -387,22 +389,21 @@ export function useMowPlan({
       // auto: what the planner took last time for this area, lanes until it planned it once
       fillPattern: str('fill_pattern', 'lanes'),
       crosshatchAngle: num('crosshatch_angle', Math.PI / 2),
-      minLaneLength: num('min_lane_length', 0.1),
+      // fixed in the planner, like waypoint spacing, corner rounding, simplifying and the body's tolerance below
+      minLaneLength: 0.1,
       narrowParts: str('narrow_parts', 'lanes'),
-      // (no tighter than min_turn_radius, the planner takes that then)
-      turnRadius: Math.max(num('turn_radius', 0.25), num('min_turn_radius', 0)),
+      turnRadius,
       laneOrder: str('lane_order', 'skip'),
       bladeAhead: num('blade_ahead', 0),
       bladeOffset: num('blade_offset', 0),
-      waypointSpacing: num('waypoint_spacing', 0.1),
+      waypointSpacing: 0.1,
       perimeterOrder: str('perimeter_order', 'first'),
       perimeterDirection: str('perimeter_direction', 'auto'),
-      cornerRadius: num('perimeter_corner_radius', 0.15),
-      simplifyTolerance: num('simplify_tolerance', 0.01),
-      turnTypes: Array.isArray(value('turn_types')) ? (value('turn_types') as string[]) : undefined,
-      // (only where OpenMower's controller backs up where the plan does, the planner leaves it out otherwise)
-      allowReverse: value('allow_reverse') === true && planner?.can_back_up === true,
-      minTurnRadius: num('min_turn_radius', 0),
+      cornerRadius: 0.15,
+      simplifyTolerance: 0.01,
+      turnTypes,
+      // the turn radius is also the tightest arc, where a turn with an arc may be at all
+      minTurnRadius: turnRadius > 0 && (turnTypes ?? ['u_turn']).some((t) => ['u_turn', 'bulb', 'detour'].includes(t)) ? turnRadius : 0,
       body:
         width > 0 && front + rear > 0
           ? {
@@ -410,7 +411,7 @@ export function useMowPlan({
               front,
               rear,
               recorded: str('edges', 'recorded') !== 'hard',
-              tolerance: num('body_tolerance', 0.05),
+              tolerance: 0.05,
               drivable: others
                 .filter((a) => a.properties.type === 'mow' && a.properties.active !== false && a.properties.mowable !== false)
                 .map((a) => a.outline),

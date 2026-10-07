@@ -64,8 +64,6 @@ export interface PlannerSettings {
   settings: Record<string, PlannerSetting>;
   own_angle?: boolean;
   file?: string | null;
-  // OpenMower's controller backs up where the plan does (its back_up_with_plan): only then allow_reverse counts
-  can_back_up?: boolean;
   // the angle turned further after finished mows: steps so far (each angle_increment, an area's own or the one for
   // all), finished mows since the last step, and the steps with the one for all areas (rad)
   angle_steps?: number;
@@ -81,8 +79,6 @@ export const BODY_SETTINGS = [
   'mower_width',
   'blade_ahead',
   'blade_offset',
-  'body_tolerance',
-  'min_turn_radius',
 ] as const;
 export type BodySetting = (typeof BODY_SETTINGS)[number];
 

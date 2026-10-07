@@ -33,9 +33,6 @@ const LABELS: Record<BodySetting, string> = {
   mower_width: 'Blade diameter',
   blade_ahead: 'Blade ahead of the rear axle',
   blade_offset: 'Blade to the left of the middle',
-  body_tolerance: 'Leeway past the edges',
-  // tighter, the inner wheel stands or turns backwards and scuffs the lawn: it turns on the spot there instead
-  min_turn_radius: 'Tightest curve radius',
 };
 
 type Styles = Record<string, string>;
@@ -138,9 +135,7 @@ export function MowerBodySettings({styles}: {styles: Styles}) {
   }
 
   const known = settings?.settings ?? {};
-  // a planner that checks the body in every plan (it has edge_margin) keeps distances of its own, body_tolerance isn't
-  // a leeway past the edges there. The tightest curve is in the planner menu (Tightest curve)
-  const keys = BODY_SETTINGS.filter((k) => !(k === 'body_tolerance' && known.edge_margin) && k !== 'min_turn_radius');
+  const keys = BODY_SETTINGS;
   // what the form would make of it: the sketch follows the fields while typing
   const metres = (key: BodySetting) => {
     const v = parseFloat(form[key].replace(',', '.'));

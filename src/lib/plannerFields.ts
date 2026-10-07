@@ -158,7 +158,6 @@ export const FIELDS: Record<string, Field> = {
     group: 'edge',
     choices: {recorded: 'Driven along the edge', hard: 'The wall itself'},
   },
-  min_turn_radius: {label: 'Tightest curve', help: "Turns, loops and drives aren't tighter, kinks in tight spots may be rounded tighter.", group: 'turns', unit: 'm', step: 0.05},
   perimeter_order: {
     label: 'Outline passes first or last',
     help: 'Before the lanes, or after them: last mows over the marks the turns leave at the edge.',
@@ -172,16 +171,9 @@ export const FIELDS: Record<string, Field> = {
     group: 'edge',
     choices: {auto: 'Automatic', ccw: 'Counter-clockwise', cw: 'Clockwise'},
   },
-  perimeter_corner_radius: {
-    label: 'Corner rounding',
-    help: 'Corners of the outline passes are rounded this much, 0 = sharp. Not tighter than the tightest curve.',
-    group: 'edge',
-    unit: 'm',
-    step: 0.05,
-  },
   turn_radius: {
     label: 'Turn radius',
-    help: 'Radius of the turns at the ends of the lanes. Larger is gentler on the lawn, but needs more room at the edge (more outline passes). Not tighter than the tightest curve.',
+    help: "Radius of the turns at the ends of the lanes, and no curve anywhere is tighter. Larger is gentler on the lawn, but needs more room at the edge (more outline passes).",
     group: 'turns',
     unit: 'm',
     step: 0.05,
@@ -195,9 +187,9 @@ export const FIELDS: Record<string, Field> = {
   },
   turn_types: {
     label: 'Turns allowed',
-    help: 'The kinds of turns the planner may use, the first ones it likes best. Turning on the spot leaves out the bulb turn, the three-point turn needs backing up.',
+    help: 'The kinds of turns the planner may use, the first ones it likes best. Turning on the spot leaves out the bulb turn.',
     group: 'turns',
-    choices: {u_turn: 'U-turn', bulb: 'Bulb turn', k_turn: 'Three-point turn', detour: 'Detour along the edge', pivot: 'Turn on the spot'},
+    choices: {u_turn: 'U-turn', bulb: 'Bulb turn', detour: 'Detour along the edge', pivot: 'Turn on the spot'},
     advanced: true,
   },
   turn_on_spot: {
@@ -250,17 +242,6 @@ export const FIELDS: Record<string, Field> = {
     step: 0.01,
     area: true,
   },
-  smooth_spins: {
-    label: 'Loops on the way too',
-    help: 'With turning in a loop: where the way would otherwise turn on the spot in the middle of the lawn (a sharp corner, arriving across a lane), the mower drives a small loop instead where it fits.',
-    group: 'turns',
-  },
-  allow_reverse: {
-    label: 'Back up where needed',
-    help: 'Three-point turns where nothing else fits. Only with an OpenMower that can back up along the plan, otherwise the mower stops there.',
-    group: 'turns',
-    advanced: true,
-  },
   route_order: {
     label: 'Order of the parts',
     help: 'The closest part not mowed yet next, or the order with the shortest drives between them (takes a little longer to plan).',
@@ -308,17 +289,26 @@ export const FIELDS: Record<string, Field> = {
     group: 'fine',
     choices: {mowbite: 'MowBite', slic3r: 'slic3r (OpenMower)'},
   },
-  waypoint_spacing: {label: 'Point spacing', help: 'Distance between the points of the path.', group: 'fine', unit: 'm', step: 0.01, advanced: true},
-  transit_clearance: {label: 'Clearance of drives', help: 'Drives keep this far from the outline passes.', group: 'fine', unit: 'm', step: 0.01, advanced: true},
-  simplify_tolerance: {label: 'Outline smoothing', help: 'Outlines and obstacles are smoothed this much first.', group: 'fine', unit: 'm', step: 0.01, advanced: true},
-  min_lane_length: {label: 'Shortest lane', help: 'Shorter pieces of a lane are left out.', group: 'fine', unit: 'm', step: 0.01, advanced: true},
 };
 
 // settings a planner may still report that the app leaves out: the planner of the next version drops them again (and
 // everything stored with them)
 export const DROPPED = ['mode'];
+// settings of before the planner leaves out now (fixed, gone, or turn_radius for min_turn_radius), also where an area
+// still has one
+export const RETIRED = [
+  'min_turn_radius',
+  'smooth_spins',
+  'allow_reverse',
+  'waypoint_spacing',
+  'simplify_tolerance',
+  'min_lane_length',
+  'transit_clearance',
+  'body_tolerance',
+  'perimeter_corner_radius',
+];
 // choices not offered any more, though a planner from before still has them
-export const DROPPED_CHOICES: Record<string, string[]> = {fill_pattern: ['auto']};
+export const DROPPED_CHOICES: Record<string, string[]> = {fill_pattern: ['auto'], turn_types: ['k_turn']};
 // counted by the planner itself, shown with the angle turned further (simple menu), not in the lists
 export const COUNTED = ['angle_steps'];
 // in the planner menu at the map (PlannerSimple), the lists for experts leave them out
@@ -343,10 +333,8 @@ export const SIMPLE = [
   'bend_max_gap',
   'nested_areas',
   'turn_on_spot',
-  'smooth_spins',
-  'min_turn_radius',
+  'turn_radius',
   'spin_margin',
-  'allow_reverse',
   'body_fit',
   'route_order',
   'transit_edge_distance',
@@ -364,8 +352,6 @@ export const BODY_KEYS = [
   'mower_width',
   'blade_ahead',
   'blade_offset',
-  'body_tolerance',
-  'min_turn_radius',
   'edges',
   // a list of points (type "points"), set from a model in the same card
   'robot_outline',

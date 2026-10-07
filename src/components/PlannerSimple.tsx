@@ -805,7 +805,7 @@ export function PlannerSimple({
           </Section>
         )}
 
-        {(has('turn_on_spot') || has('min_turn_radius') || has('body_fit') || has('spin_margin') || (has('allow_reverse') && planner.can_back_up === true)) && (
+        {(has('turn_on_spot') || has('turn_radius') || has('body_fit') || has('spin_margin')) && (
           <Section title={tr('Turns')}>
             {has('turn_on_spot') && (
               <Row
@@ -817,20 +817,6 @@ export function PlannerSimple({
                 source={others('turn_on_spot')}
               >
                 {either('turn_on_spot', tr('In a loop'), tr('On the spot'))}
-              </Row>
-            )}
-            {/* only with loops, turning on the spot leaves loops out anyway */}
-            {!area && has('smooth_spins') && !spot && (
-              <Row
-                label={tr('Loops on the way too')}
-                help={tr(FIELDS.smooth_spins.help)}
-                note={
-                  global('smooth_spins') !== false
-                    ? tr('Also elsewhere a small loop where it would turn on the spot.')
-                    : tr('Off: loops only at the ends of the lanes, elsewhere it turns on the spot.')
-                }
-              >
-                {toggle('smooth_spins')}
               </Row>
             )}
             {has('spin_margin') && (
@@ -845,35 +831,16 @@ export function PlannerSimple({
                 {cmField('spin_margin')}
               </Row>
             )}
-            {has('min_turn_radius') && (
+            {has('turn_radius') && (
               <Row
-                label={tr('Tightest curve')}
+                label={tr('Turn radius')}
                 help={tr(
-                  "Turns, loops and drives aren't tighter than this. Where no curve this wide fits, a kink in a tight spot is rounded tighter instead of turning on the spot. The tighter a curve, the slower the inner wheel turns, at the tightest it stands still or turns backwards and tears the lawn. At half the distance between the drive wheels the inner wheel just stands still: take a little more.",
+                  "Radius of the turns at the ends of the lanes, and no curve anywhere is tighter: turns, loops and drives. Where none this wide fits, it turns on the spot. The tighter a curve, the slower the inner wheel turns, at the tightest it stands still or turns backwards and tears the lawn. At half the distance between the drive wheels the inner wheel just stands still: take a little more.",
                 )}
                 note={tr('Larger is gentler on the lawn, needs more room at the edge.')}
-                source={others('min_turn_radius') || ownLine('min_turn_radius')}
+                source={others('turn_radius') || ownLine('turn_radius')}
               >
-                {numberField(
-                  'least',
-                  area && area.own.min_turn_radius === undefined ? '' : cm(value('min_turn_radius')),
-                  cm(global('min_turn_radius')),
-                  'cm',
-                  (text) => {
-                    const v = parse(text);
-                    void save('min_turn_radius', v === null ? undefined : Math.max(0, v / 100));
-                  },
-                )}
-              </Row>
-            )}
-            {has('allow_reverse') && planner.can_back_up === true && (
-              <Row
-                label={tr('Back up where needed')}
-                help={tr('Possible because OpenMower on this mower backs up along the plan. Where no turn fits going forwards (a tight corner), the mower backs up briefly instead of turning on the spot.')}
-                note={effective('allow_reverse') ? tr('A three-point turn in tight corners.') : tr('Turns on the spot in tight corners.')}
-                source={others('allow_reverse')}
-              >
-                {toggle('allow_reverse')}
+                {cmField('turn_radius', 300)}
               </Row>
             )}
             {has('body_fit') && (

@@ -48,8 +48,7 @@ export interface PlannerEstimateInput {
   cornerRadius?: number; // m, perimeter_corner_radius: a loop doesn't start right at a corner
   simplifyTolerance?: number; // m, the outline and obstacles are simplified this much first
   spacingMode?: string; // fixed, auto (the spacing is the one the planner picked or will try first), for chosen
-  turnTypes?: string[]; // the kinds of turns allowed (u_turn, bulb, k_turn, detour, pivot)
-  allowReverse?: boolean; // k-turns, which back up
+  turnTypes?: string[]; // the kinds of turns allowed (u_turn, bulb, detour, pivot)
   minTurnRadius?: number; // m, no arc of a turn tighter than this (it turns on the spot there)
   // collision mode (body sizes with a planner that keeps distances): the first loop keeps at least edgeMargin off the
   // outline, the loops round a hole at least its margin (undefined: like round the outline)
@@ -1289,7 +1288,7 @@ function straight(x0: number, y0: number, x1: number, y1: number, yaw: number, s
 }
 
 // the planner's turns from the end of a lane (at the origin facing +x) into the next one, starting at (dx, d) and
-// driven the other way: u_turn where the lanes are two radii apart, bulb or k_turn (backing up) where they're closer.
+// driven the other way: u_turn where the lanes are two radii apart, bulb where they're closer.
 // The turn goes level with the longer lane, the shorter one carried on straight to get there. Poses, null: none
 function turnShape(name: string, d: number, dx: number, r: number, step: number): Pose[] | null {
   const a = Math.max(dx, 0);
@@ -1318,15 +1317,6 @@ function turnShape(name: string, d: number, dx: number, r: number, step: number)
     last[last.length - 1] = {x: a, y: d, yaw: Math.PI};
     return [...leadIn, ...first, ...loop, ...last, ...leadOut];
   }
-  if (name === 'k_turn') {
-    return [
-      ...leadIn,
-      ...sampleArc(a, 0, 0, r, Math.PI / 2, step),
-      ...straight(a + r, r, a + r, d - r, Math.PI / 2, step),
-      ...sampleArc(a + r, d - r, Math.PI / 2, r, Math.PI / 2, step),
-      ...leadOut,
-    ];
-  }
   return null;
 }
 
@@ -1349,7 +1339,7 @@ function turnFits(exit: Pose, entry: Point, radius: number, step: number, types:
   radii.sort((p, q) => q - p);
   for (const r of radii) {
     for (const name of types) {
-      if (!['u_turn', 'bulb', 'k_turn'].includes(name) || (name === 'u_turn') !== d >= 2 * r - 1e-9) continue;
+      if (!['u_turn', 'bulb'].includes(name) || (name === 'u_turn') !== d >= 2 * r - 1e-9) continue;
       const local = turnShape(name, d, dx, r, step);
       if (!local) continue;
       const poses = local.map((p) => ({x: exit.x + p.x * c - side * p.y * s, y: exit.y + p.x * s + side * p.y * c, yaw: exit.yaw + side * p.yaw}));
@@ -1597,7 +1587,7 @@ export function plannerEstimate(input: PlannerEstimateInput): PlannerEstimate | 
   const ahead = input.bladeAhead ?? 0;
   const lateral = input.bladeOffset ?? 0;
   const laneOrder = input.laneOrder ?? 'skip';
-  const turnTypes = (input.turnTypes ?? ['u_turn', 'bulb', 'k_turn', 'detour', 'pivot']).filter((t) => t !== 'k_turn' || input.allowReverse);
+  const turnTypes = input.turnTypes ?? ['u_turn', 'bulb', 'detour', 'pivot'];
   const {body, room, turnRoom} = prep;
   // m, the turns between the lanes and the drives to the cells, about as the planner's turns go
   let between = prep.between;

@@ -2,7 +2,7 @@
 
 import {tr} from '@/lib/i18n';
 import {loadPlannerSettings, savePlannerSettings, usePlannerSettings, type PlannerSetting} from '@/lib/mowerBody';
-import {ANGLE_FOR_ALL, BODY_KEYS, COUNTED, DROPPED, DROPPED_CHOICES, FIELDS, fromInput, GROUPS, SIMPLE, toInput, type Field, type Group} from '@/lib/plannerFields';
+import {ANGLE_FOR_ALL, BODY_KEYS, COUNTED, DROPPED, DROPPED_CHOICES, FIELDS, fromInput, GROUPS, RETIRED, SIMPLE, toInput, type Field, type Group} from '@/lib/plannerFields';
 import {RpcError} from '@/lib/rpc';
 import {useEffect, useState} from 'react';
 import InfoTip from './InfoTip';
@@ -51,7 +51,6 @@ export function PlannerField({
   styles,
   placeholder,
   globalLabel,
-  unavailable,
   warning,
 }: {
   name: string;
@@ -63,8 +62,6 @@ export function PlannerField({
   placeholder?: string;
   // a choice field per area: the extra choice "as set for all areas"
   globalLabel?: string;
-  // why it can't be used on this mower: shown greyed out with this under it
-  unavailable?: string | null;
   // what's off about the value set, shown under it
   warning?: string | null;
 }) {
@@ -104,39 +101,25 @@ export function PlannerField({
         {label}
         <div className={styles.segment}>
           {globalLabel !== undefined && (
-            <button className={value === '' ? styles.segmentOn : undefined} disabled={!!unavailable} onClick={() => onChange('')}>
+            <button className={value === '' ? styles.segmentOn : undefined} onClick={() => onChange('')}>
               {globalLabel}
             </button>
           )}
           {choices.map((c) => (
-            <button key={c} className={value === c ? styles.segmentOn : undefined} disabled={!!unavailable} onClick={() => onChange(c)}>
+            <button key={c} className={value === c ? styles.segmentOn : undefined} onClick={() => onChange(c)}>
               {tr(field?.choices?.[c] ?? c)}
             </button>
           ))}
         </div>
-        {unavailable && <p className={styles.dim}>{unavailable}</p>}
       </div>
     );
   }
   if (setting.type === 'boolean') {
-    const check = (
+    return (
       <label className={styles.check}>
-        <input
-          type="checkbox"
-          checked={value === 'true'}
-          disabled={!!unavailable}
-          onChange={(e) => onChange(e.target.checked ? 'true' : 'false')}
-        />
+        <input type="checkbox" checked={value === 'true'} onChange={(e) => onChange(e.target.checked ? 'true' : 'false')} />
         {label}
       </label>
-    );
-    return unavailable ? (
-      <div>
-        {check}
-        <p className={styles.dim}>{unavailable}</p>
-      </div>
-    ) : (
-      check
     );
   }
   // a number the planner can work out itself (perimeter_passes -1): a button for that next to it
@@ -178,14 +161,6 @@ export function PlannerField({
   );
 }
 
-// a turn radius under min_turn_radius: the planner takes min_turn_radius then, null when it's fine
-export function turnRadiusWarning(all: Record<string, PlannerSetting>, radius: unknown): string | null {
-  const least = all.min_turn_radius?.value;
-  const r = typeof radius === 'number' ? radius : all.turn_radius?.value;
-  if (typeof least !== 'number' || least <= 0 || typeof r !== 'number' || r >= least - 1e-9) return null;
-  return tr('Tighter than the tightest curve radius ({min} m): the planner takes {min} m.', {min: toInput(FIELDS.turn_radius, least)});
-}
-
 export function PlannerSettings({styles}: {styles: Styles}) {
   const settings = usePlannerSettings();
   // numbers as typed, saved once the field is left
@@ -216,7 +191,7 @@ export function PlannerSettings({styles}: {styles: Styles}) {
   const shown = {...formFrom(all), ...form};
   // the ones the planner menu above doesn't have (a direction for all areas: each area has its own)
   const keys = Object.keys(all).filter(
-    (k) => !BODY_KEYS.includes(k) && !DROPPED.includes(k) && !SIMPLE.includes(k) && !ANGLE_FOR_ALL.includes(k) && all[k].settable,
+    (k) => !BODY_KEYS.includes(k) && !DROPPED.includes(k) && !RETIRED.includes(k) && !SIMPLE.includes(k) && !ANGLE_FOR_ALL.includes(k) && all[k].settable,
   );
   const fixed = Object.keys(all).filter((k) => !all[k].settable && !COUNTED.includes(k));
   const group = (k: string): Group => FIELDS[k]?.group ?? 'fine';
@@ -251,16 +226,6 @@ export function PlannerSettings({styles}: {styles: Styles}) {
 
   // choices and lists take the whole row
   const wide = (k: string) => all[k].type === 'list' || (all[k].type === 'string' && !!all[k].choices?.length);
-  // backing up needs OpenMower's controller to back up where the plan does, the planner leaves it out otherwise
-  const unavailable = (k: string) =>
-    k === 'allow_reverse' && settings.can_back_up !== true
-      ? tr("This mower's OpenMower doesn't back up along the plan yet (back_up_with_plan), the planner leaves it out.")
-      : null;
-  // a number as typed, the planner's value while it's empty or not a number
-  const typedNumber = (k: string) => {
-    const v = fromInput(FIELDS[k], String(shown[k] ?? ''));
-    return typeof v === 'number' ? v : undefined;
-  };
   const field = (k: string) => (
     <div
       key={k}
@@ -273,8 +238,6 @@ export function PlannerSettings({styles}: {styles: Styles}) {
         setting={all[k]}
         value={shown[k] ?? ''}
         styles={styles}
-        unavailable={unavailable(k)}
-        warning={k === 'turn_radius' ? turnRadiusWarning(all, typedNumber(k)) : null}
         onChange={(v) => {
           if (!typed(k)) return commit(k, v);
           setForm({...form, [k]: v});

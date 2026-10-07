@@ -26,7 +26,7 @@ describe('ownSettings', () => {
       ['Pattern', 'Rings', null],
       ['Outline passes', 'automatic', null],
       ['Distance to obstacles', '3 cm', null],
-      ['Back up where needed', 'off', null],
+      // allow_reverse is a setting of before, the planner leaves it out
     ]);
   });
 
