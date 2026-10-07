@@ -789,7 +789,7 @@ export function PlannerSimple({
             <Row
               label={tr('Extra distance when turning')}
               help={tr(
-                'Where the mower turns on the spot, and on the last bit before, its body keeps this much more distance to the edge and to obstacles: it often wanders a little while turning.',
+                'When turning, on the spot and all along the turns between the lanes, the mower keeps its body this much further off the edge and obstacles: it often wanders a little there. Loops along the edge, lanes and drives keep the plain distances.',
               )}
               note={tr('On top of the distances to the edge and to obstacles.')}
               source={others('spin_margin') || ownLine('spin_margin')}
