@@ -211,7 +211,7 @@
   backdrop-filter: var(--card-blur, none);
 }
 
-.mowSettings label:not(.toggle) {
+.mowSettings label:not(.toggle):not(.dirRow):not(.dirPairField) {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -695,4 +695,73 @@
   background: transparent;
   color: var(--foreground);
   font-size: 13px;
+}
+
+/* an area's direction (MowSettings): in the planner menu like its other settings, without the planner in the card */
+.areaDirection {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dirRow {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.dirLabel {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.dirNote {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.dirPair {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.dirPairField {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* (label: wins over the menu's own narrower fields) */
+.areaDirection label input[type='number'] {
+  width: 110px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: transparent;
+  color: var(--foreground);
+  font-size: 14px;
+}
+
+/* an area's plan (MowSettings): shown or not, how long */
+.areaPlan {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* room for "like all areas: 2°" */
+.areaDirection label input.dirWide[type='number'] {
+  width: 190px;
 }

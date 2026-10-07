@@ -1,8 +1,9 @@
 // How the app shows the MowBite Planner's settings (planner.settings gives value, default, type, range and choices,
 // this adds a name, what it does, a group and how a value is typed in). Settings the planner has but this doesn't
-// know show up with their own name under "More", so a newer planner's settings can be set too.
+// know show up with their own name under "More", so a newer planner's settings can be set too. The groups are the
+// sections of the planner menu, the same for all areas and for one area.
 
-export type Group = 'spacing' | 'pattern' | 'angle' | 'loops' | 'turns' | 'route' | 'fine';
+export type Group = 'pattern' | 'angle' | 'edge' | 'obstacles' | 'turns' | 'route' | 'fine';
 
 export interface Field {
   label: string;
@@ -13,6 +14,8 @@ export interface Field {
   step?: number;
   // names for the choices of a setting that has them
   choices?: Record<string, string>;
+  // names for off and on of a switch that is a choice of two ways
+  ways?: [string, string];
   // offered per area too (the area's planner property)
   area?: boolean;
   // only under "More"
@@ -20,12 +23,12 @@ export interface Field {
 }
 
 export const GROUPS: {key: Group; label: string}[] = [
-  {key: 'spacing', label: 'Lane spacing'},
   {key: 'pattern', label: 'Pattern'},
-  {key: 'angle', label: 'Mowing direction'},
-  {key: 'loops', label: 'Outline passes'},
+  {key: 'angle', label: 'Direction'},
+  {key: 'edge', label: 'Edge'},
+  {key: 'obstacles', label: 'Obstacles'},
   {key: 'turns', label: 'Turns'},
-  {key: 'route', label: 'Order and drives'},
+  {key: 'route', label: 'Drives between the parts'},
   {key: 'fine', label: 'Fine tuning'},
 ];
 
@@ -33,16 +36,30 @@ export const FIELDS: Record<string, Field> = {
   lane_spacing_mode: {
     label: 'Lane spacing',
     help: "Fixed: OpenMower's lane spacing (tool_width), or the overlap set here. Picked by the planner: the widest spacing between the two below that leaves nothing unmowed, fewer lanes and turns.",
-    group: 'spacing',
+    group: 'pattern',
     choices: {fixed: 'Fixed', auto: 'Picked by the planner'},
     area: true,
   },
-  lane_spacing_min: {label: 'Spacing from', help: 'The narrowest spacing the planner tries. Empty: half the blade.', group: 'spacing', unit: 'm', step: 0.01, advanced: true},
-  lane_spacing_max: {label: 'Spacing up to', help: 'The widest spacing the planner tries, it starts there. Empty: 85 % of the blade.', group: 'spacing', unit: 'm', step: 0.01, advanced: true},
+  lane_spacing_min: {
+    label: 'Spacing from',
+    help: 'With the lane spacing picked by the planner: the narrowest spacing it tries. Empty: half the blade.',
+    group: 'pattern',
+    unit: 'm',
+    step: 0.01,
+    advanced: true,
+  },
+  lane_spacing_max: {
+    label: 'Spacing up to',
+    help: 'With the lane spacing picked by the planner: the widest spacing it tries, it starts there. Empty: 85 % of the blade.',
+    group: 'pattern',
+    unit: 'm',
+    step: 0.01,
+    advanced: true,
+  },
   overlap: {
     label: 'Overlap',
     help: "How much of the blade's width the lanes overlap (0.2 = 20 %), with a fixed spacing. Empty: from OpenMower's lane spacing (tool_width).",
-    group: 'spacing',
+    group: 'pattern',
     step: 0.05,
     advanced: true,
   },
@@ -68,8 +85,8 @@ export const FIELDS: Record<string, Field> = {
     step: 5,
   },
   angle_strategy: {
-    label: 'Direction worked out',
-    help: "How the planner picks the direction of the lanes itself. Set here, it wins over the area's mow angle (an area with an angle of its own keeps it, unless its own planner setting says otherwise).",
+    label: 'Automatic direction',
+    help: "For areas without a mow angle of their own: how the direction of the lanes is worked out. OpenMower: from the outline's first point, for a recorded area the way you set off.",
     group: 'angle',
     choices: {longest_edge: 'Along the longest edge', min_width: 'Across the narrowest width', optimal: 'Fewest lanes and turns'},
     area: true,
@@ -84,7 +101,7 @@ export const FIELDS: Record<string, Field> = {
   },
   angle_step: {
     label: 'Steps tried',
-    help: '"Fewest lanes and turns" tries directions this far apart. Smaller takes longer.',
+    help: 'With the automatic direction "Fewest lanes and turns": the directions tried are this far apart. Smaller takes longer.',
     group: 'angle',
     unit: 'deg',
     step: 1,
@@ -114,22 +131,22 @@ export const FIELDS: Record<string, Field> = {
   angle_min: {label: 'Direction from', help: 'The direction of the lanes stays between these two, set both or neither.', group: 'angle', unit: 'deg', step: 1, advanced: true},
   angle_max: {label: 'Direction to', help: 'The direction of the lanes stays between these two, set both or neither.', group: 'angle', unit: 'deg', step: 1, advanced: true},
   perimeter_passes: {
-    label: 'Number of outline passes',
+    label: 'Outline passes',
     help: "For all areas, an area's own outline passes still count. Automatic: as many as the lanes' turns leave unmowed along the edge. Empty: OpenMower's (outline_count).",
-    group: 'loops',
+    group: 'edge',
     step: 1,
   },
   lane_overlap_passes: {
     label: 'Overlapping passes',
     help: "How many outline passes the lanes reach into. Empty: OpenMower's (outline_overlap_count).",
-    group: 'loops',
+    group: 'edge',
     step: 1,
     area: true,
   },
   perimeter_offset: {
     label: 'Outline offset',
-    help: "How far inside the outline the first pass runs. Empty: OpenMower's (outline_offset).",
-    group: 'loops',
+    help: "How far inside the lines of the map the first outline pass runs. Empty: OpenMower's (outline_offset). With the mower sizes the distance to the edge counts instead.",
+    group: 'edge',
     unit: 'm',
     step: 0.05,
     advanced: true,
@@ -138,33 +155,33 @@ export const FIELDS: Record<string, Field> = {
   edges: {
     label: 'Lines of the map',
     help: 'What the lines of the map stand for: driven along the edge with the mower, or the wall itself.',
-    group: 'loops',
+    group: 'edge',
     choices: {recorded: 'Driven along the edge', hard: 'The wall itself'},
   },
   min_turn_radius: {label: 'Tightest curve', help: "Turns, loops and drives aren't tighter, kinks in tight spots may be rounded tighter.", group: 'turns', unit: 'm', step: 0.05},
   perimeter_order: {
-    label: 'Outline passes',
+    label: 'Outline passes first or last',
     help: 'Before the lanes, or after them: last mows over the marks the turns leave at the edge.',
-    group: 'loops',
+    group: 'edge',
     choices: {first: 'First', last: 'Last'},
     area: true,
   },
   perimeter_direction: {
     label: 'Way round',
     help: 'Which way the outline passes go round. Automatic: the way the mower already faces.',
-    group: 'loops',
+    group: 'edge',
     choices: {auto: 'Automatic', ccw: 'Counter-clockwise', cw: 'Clockwise'},
   },
   perimeter_corner_radius: {
     label: 'Corner rounding',
-    help: 'Corners of the outline passes are rounded this much, 0 = sharp.',
-    group: 'loops',
+    help: 'Corners of the outline passes are rounded this much, 0 = sharp. Not tighter than the tightest curve.',
+    group: 'edge',
     unit: 'm',
     step: 0.05,
   },
   turn_radius: {
     label: 'Turn radius',
-    help: 'Radius of the turns between lanes. Larger is gentler on the lawn, but needs more room at the edge.',
+    help: 'Radius of the turns at the ends of the lanes. Larger is gentler on the lawn, but needs more room at the edge (more outline passes). Not tighter than the tightest curve.',
     group: 'turns',
     unit: 'm',
     step: 0.05,
@@ -178,15 +195,16 @@ export const FIELDS: Record<string, Field> = {
   },
   turn_types: {
     label: 'Turns allowed',
-    help: 'The kinds of turns the planner may use. The mower only drives forwards, so backing up is left out.',
+    help: 'The kinds of turns the planner may use, the first ones it likes best. Turning on the spot leaves out the bulb turn, the three-point turn needs backing up.',
     group: 'turns',
     choices: {u_turn: 'U-turn', bulb: 'Bulb turn', k_turn: 'Three-point turn', detour: 'Detour along the edge', pivot: 'Turn on the spot'},
     advanced: true,
   },
   turn_on_spot: {
-    label: 'Turn on the spot',
-    help: 'At the end of a lane the mower turns on the spot instead of in a loop: about 14 % quicker, harder on the lawn.',
+    label: 'Turning',
+    help: 'Where a plain curve doesn’t fit, the mower drives a loop, gentle on the lawn, or turns on the spot, about 14 % quicker but harder on the lawn.',
     group: 'turns',
+    ways: ['In a loop', 'On the spot'],
     area: true,
   },
   headland_turns: {
@@ -205,7 +223,7 @@ export const FIELDS: Record<string, Field> = {
   edge_margin: {
     label: 'Distance to the edge',
     help: "How far the mower's body keeps off the real edge, everywhere.",
-    group: 'loops',
+    group: 'edge',
     unit: 'm',
     step: 0.01,
     area: true,
@@ -213,7 +231,7 @@ export const FIELDS: Record<string, Field> = {
   obstacle_margin: {
     label: 'Distance to obstacles',
     help: "How far the mower's body keeps off obstacles, areas not mowed and inactive ones. An obstacle's own distance wins.",
-    group: 'loops',
+    group: 'obstacles',
     unit: 'm',
     step: 0.01,
     area: true,
@@ -233,8 +251,8 @@ export const FIELDS: Record<string, Field> = {
     area: true,
   },
   smooth_spins: {
-    label: 'Loop out instead of turning on the spot',
-    help: 'Where a path would turn on the spot by a lot, the mower drives a small loop instead, where it fits. Gentler on the lawn.',
+    label: 'Loops on the way too',
+    help: 'With turning in a loop: where the way would otherwise turn on the spot in the middle of the lawn (a sharp corner, arriving across a lane), the mower drives a small loop instead where it fits.',
     group: 'turns',
   },
   allow_reverse: {
@@ -253,7 +271,7 @@ export const FIELDS: Record<string, Field> = {
   bend_max_gap: {
     label: 'Lanes around obstacles',
     help: 'A lane split by an obstacle no longer than this (a tree, a small bed) goes on around it instead of the area being split there. 0 = off.',
-    group: 'route',
+    group: 'obstacles',
     unit: 'm',
     step: 0.5,
     area: true,
@@ -261,14 +279,14 @@ export const FIELDS: Record<string, Field> = {
   bend_max_offset: {
     label: 'How far around',
     help: 'How far a lane going around an obstacle may leave its line.',
-    group: 'route',
+    group: 'obstacles',
     unit: 'm',
     step: 0.1,
   },
   nested_areas: {
     label: 'Areas inside areas',
     help: 'A mowing area lying in another (90 % of it at least) is left out of the bigger one and mowed round, it gets a plan of its own with its own settings (another angle, not mowed). Off: the bigger one mows across it.',
-    group: 'route',
+    group: 'obstacles',
   },
   transit_edge_distance: {
     label: 'Drives away from edges',
@@ -300,23 +318,36 @@ export const COUNTED = ['angle_steps'];
 // in the planner menu at the map (PlannerSimple), the lists for experts leave them out
 export const SIMPLE = [
   'fill_pattern',
+  'crosshatch_angle',
   'lane_spacing_mode',
   'overlap',
   'headland_turns',
   'headland_corners',
+  'narrow_parts',
+  'angle_strategy',
+  'angle_increment',
+  'angle_increment_every',
   'edges',
   'perimeter_passes',
   'lane_overlap_passes',
+  'perimeter_order',
   'edge_margin',
   'obstacle_margin',
+  'bend_max_gap',
+  'nested_areas',
   'turn_on_spot',
+  'smooth_spins',
   'min_turn_radius',
+  'spin_margin',
   'allow_reverse',
   'body_fit',
-  'spin_margin',
-  'angle_increment',
-  'angle_increment_every',
+  'route_order',
+  'transit_edge_distance',
 ];
+
+// a direction for all areas: each area has its own angle, range and further turning for that. Not offered any more,
+// one still stored shows with a button to take it away (PlannerSimple)
+export const ANGLE_FOR_ALL = ['angle', 'angle_offset', 'angle_min', 'angle_max'];
 
 // shown in their own card (Mower sizes)
 export const BODY_KEYS = [

@@ -1,33 +1,42 @@
 'use client';
 
+import type {MowerMap, Point} from '@/hooks/useMowerMap';
 import {tr} from '@/lib/i18n';
 import {resetPlannerAngle, savePlannerSettings, usePlannerSettings, type PlannerSetting} from '@/lib/mowerBody';
-import {ownSettings, type OpenMowerOwn} from '@/lib/plannerOwn';
+import {ANGLE_FOR_ALL, FIELDS} from '@/lib/plannerFields';
+import {areasWith, areasWithDirection, ownMargins, ownSettings, shown, type AreaValue, type OpenMowerOwn} from '@/lib/plannerOwn';
 import {RpcError} from '@/lib/rpc';
 import {useEffect, useState} from 'react';
 import InfoTip from './InfoTip';
 import local from './PlannerSimple.module.css';
 
-// The planner's settings that matter for a garden, in a few sections: the pattern, the edge, obstacles, turns and the
-// direction turning further. For all areas (saved on the planner right away) or for one area (its planner property,
-// saved with the map, nothing set: like all areas), with what the area sets itself at the top. A setting shows only
-// when the planner on the mower has it. The rest is in the lists for experts below (SIMPLE: the ones that are here).
+// The planner's settings that matter for a garden, in the same sections for all areas and for one area: pattern,
+// direction, edge, obstacles, turns and the drives between the parts. For all areas (saved on the planner right away)
+// or for one area (its planner property, saved with the map, nothing set: like all areas). Under a setting stays
+// which value counts where: for all areas the areas with one of their own, for an area its own one or OpenMower's, at
+// the distance to obstacles the obstacles with their own. A setting shows only when the planner on the mower has it.
+// The rest is in the lists for experts below (SIMPLE: the ones that are here).
 
 type Area = {
   own: Record<string, unknown>;
   set: (key: string, value: unknown) => void;
   // OpenMower's own values of the area (outline_count and co.), they count while the planner has none of its own
   openmower?: OpenMowerOwn;
+  // one of them taken away
+  dropOpenMower?: (key: keyof OpenMowerOwn) => void;
   // everything of its own back to like all areas
   clear?: () => void;
   // the outline passes in its plan (automatic: what the planner worked out for it)
   planned?: number;
+  // its outline, for the obstacles in it
+  outline?: Point[];
 };
 
 const DEG = Math.PI / 180;
 // degrees to a tenth, for a step
 const degrees = (rad: number) => Math.round((rad / DEG) * 10) / 10;
 const cm = (m: unknown) => (typeof m === 'number' ? String(Math.round(m * 1000) / 10) : '');
+const meters = (m: unknown) => (typeof m === 'number' ? String(Math.round(m * 100) / 100) : '');
 
 const PATTERNS = ['lanes', 'concentric', 'crosshatch'];
 const PATTERN_LABELS: Record<string, string> = {lanes: 'Lanes', concentric: 'Rings', crosshatch: 'Crosshatch'};
@@ -35,6 +44,13 @@ const PATTERN_NOTES: Record<string, string> = {
   lanes: 'Straight lanes there and back: the quickest, even stripes.',
   concentric: 'Rounds from the outside in: few turns, tight ones in the corners.',
   crosshatch: 'Lanes and the same across them: twice as long, very thorough.',
+};
+const STRATEGIES = ['longest_edge', 'min_width', 'optimal'];
+const STRATEGY_NOTES: Record<string, string> = {
+  openmower: "From the outline's first point, for a recorded area the way you set off.",
+  longest_edge: 'Along the longest edge of the area.',
+  min_width: 'Across the narrowest width: the fewest lanes, the longest ones.',
+  optimal: 'Directions are tried and the one with the fewest lanes and turns taken.',
 };
 
 function Choice({
@@ -67,8 +83,21 @@ function Choice({
   );
 }
 
-// a setting: its name with what it's for behind the i, the control, a line on what the choice taken does
-function Row({label, help, note, children}: {label: string; help?: string; note?: string | null; children: React.ReactNode}) {
+// a setting: its name with what it's for behind the i, the control, a line on what the choice taken does, and which
+// value counts where
+function Row({
+  label,
+  help,
+  note,
+  source,
+  children,
+}: {
+  label: string;
+  help?: string;
+  note?: string | null;
+  source?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <div className={local.row}>
       <span className={local.label}>
@@ -77,6 +106,7 @@ function Row({label, help, note, children}: {label: string; help?: string; note?
       </span>
       {children}
       {note && <p className={local.note}>{note}</p>}
+      {source}
     </div>
   );
 }
@@ -91,8 +121,26 @@ function Section({title, note, children}: {title: string; note?: string | null; 
   );
 }
 
-// omIncrement: OpenMower's own mow_angle_increment (degrees), it adds up with the planner's turning further
-export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; toolWidth?: number; omIncrement?: number}) {
+// omIncrement: OpenMower's own mow_angle_increment (degrees), it adds up with the planner's turning further.
+// map: the map as edited, for the areas and obstacles with values of their own, onSelectArea selects one of them.
+// For an area: direction, its angle, range and turning further (MowSettings), plan, its plan at the top
+export function PlannerSimple({
+  area,
+  map,
+  onSelectArea,
+  toolWidth,
+  omIncrement,
+  direction,
+  plan,
+}: {
+  area?: Area;
+  map?: MowerMap | null;
+  onSelectArea?: (id: string) => void;
+  toolWidth?: number;
+  omIncrement?: number;
+  direction?: React.ReactNode;
+  plan?: React.ReactNode;
+}) {
   const planner = usePlannerSettings();
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [state, setState] = useState<{busy?: boolean; error?: string; saved?: number}>({});
@@ -110,15 +158,18 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
   const value = (k: string) => (area ? area.own[k] : global(k));
   const effective = (k: string) => (area && area.own[k] !== undefined ? area.own[k] : global(k));
   const num = (k: string) => (typeof effective(k) === 'number' ? (effective(k) as number) : undefined);
-  const save = async (k: string, v: unknown) => {
-    if (area) return area.set(k, v);
+  const store = async (values: Record<string, unknown>) => {
     setState({busy: true});
     try {
-      await savePlannerSettings({[k]: v === undefined ? null : v});
+      await savePlannerSettings(values);
       setState((s) => ({saved: (s.saved ?? 0) + 1}));
     } catch (e) {
       setState({error: e instanceof RpcError && e.code !== 'timeout' ? e.message : tr('The mower did not answer.')});
     }
+  };
+  const save = async (k: string, v: unknown) => {
+    if (area) return area.set(k, v);
+    await store({[k]: v === undefined ? null : v});
   };
   const like = (text: string) => (area ? tr('as all ({value})', {value: text}) : undefined);
   const parse = (text: string) => {
@@ -126,11 +177,11 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
     return text.trim() && Number.isFinite(v) ? v : null;
   };
   // a number typed in, saved when the field is left, with its unit after it
-  const numberField = (key: string, shown: string, placeholder: string, unit: string, apply: (text: string) => void) => (
+  const numberField = (key: string, shownText: string, placeholder: string, unit: string, apply: (text: string) => void) => (
     <label className={local.field}>
       <input
         inputMode="decimal"
-        value={drafts[key] ?? shown}
+        value={drafts[key] ?? shownText}
         placeholder={placeholder}
         disabled={state.busy}
         onChange={(e) => setDrafts({...drafts, [key]: e.target.value})}
@@ -151,6 +202,12 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
     numberField(key, area && area.own[key] === undefined ? '' : cm(value(key)), cm(global(key)), 'cm', (text) => {
       const v = parse(text);
       void save(key, v === null ? undefined : Math.min(max, Math.max(0, v)) / 100);
+    });
+  // a length in m, for an area empty is "as all areas"
+  const mField = (key: string, max: number) =>
+    numberField(key, area && area.own[key] === undefined ? '' : meters(value(key)), meters(global(key)), 'm', (text) => {
+      const v = parse(text);
+      void save(key, v === null ? undefined : Math.min(max, Math.max(0, v)));
     });
   // one of two ways, off first: for an area also "as all areas"
   const either = (key: string, off: string, on: string) => (
@@ -175,26 +232,85 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
         <span>{value(key) ? tr('on') : tr('off')}</span>
       </label>
     );
+  // one of a setting's choices, for an area also "as all areas"
+  const choice = (key: string, names: Record<string, string>) => (
+    <Choice
+      options={(all[key].choices ?? Object.keys(names)).filter((c) => names[c]).map((c) => [c, tr(names[c])])}
+      value={value(key)}
+      like={like(tr(names[String(global(key))] ?? String(global(key) ?? '')))}
+      disabled={state.busy}
+      onChange={(v) => void save(key, v)}
+    />
+  );
+
+  // which value counts where. For all areas: the areas with one of their own, tapped the map selects them
+  const areaList = (text: string, list: AreaValue[]) =>
+    list.length > 0 && (
+      <p className={local.source}>
+        {text}{' '}
+        {list.map((a, i) => (
+          <span key={a.id}>
+            {i > 0 && ', '}
+            {onSelectArea ? (
+              <button className={local.link} onClick={() => onSelectArea(a.id)}>
+                {a.name}
+              </button>
+            ) : (
+              a.name
+            )}{' '}
+            ({a.value})
+          </span>
+        ))}
+      </p>
+    );
+  const others = (key: string) => (area ? null : areaList(tr('Own value in:'), areasWith(map, key, all)));
+  // for an area: its own value with the way back to the one for all areas, where the field alone doesn't show it
+  const ownLine = (key: string, allText?: string) =>
+    area &&
+    area.own[key] !== undefined && (
+      <p className={local.source}>
+        {tr('Own value for this area, all areas: {value}.', {value: allText ?? shown(key, global(key), all[key])})}{' '}
+        <button className={local.link} onClick={() => area.set(key, undefined)}>
+          {tr('like all areas')}
+        </button>
+      </p>
+    );
+  // OpenMower's own count of the area, saved in the map: it counts while the area has none for the planner
+  const omCount = (k: 'outline_count' | 'outline_overlap_count') => {
+    const v = area?.openmower?.[k];
+    return typeof v === 'number' && v >= 0 ? v : undefined;
+  };
+  const omLine = (key: string, prop: 'outline_count' | 'outline_overlap_count') =>
+    area && area.own[key] === undefined && omCount(prop) !== undefined ? (
+      <p className={local.source}>
+        {tr('From OpenMower, saved in the map: {n}. It counts here in place of the value for all areas.', {n: omCount(prop)!})}{' '}
+        {area.dropOpenMower && (
+          <button className={local.link} onClick={() => area.dropOpenMower!(prop)}>
+            {tr('remove')}
+          </button>
+        )}
+      </p>
+    ) : (
+      ownLine(key)
+    );
 
   const blade = typeof global('mower_width') === 'number' ? (global('mower_width') as number) : 0.18;
   // the lane spacing: worked out by the planner, or fixed (from the overlap with the blade, else OpenMower's)
   const auto = effective('lane_spacing_mode') === 'auto';
   const overlap = area?.own.overlap ?? (all.overlap?.stored ? all.overlap.value : undefined);
   const spacingCm = typeof overlap === 'number' ? blade * (1 - overlap) * 100 : toolWidth !== undefined ? toolWidth * 100 : null;
+  // the fixed spacing for all areas, for an area with its own
+  const allOverlap = all.overlap?.stored ? all.overlap.value : undefined;
+  const allSpacingCm = typeof allOverlap === 'number' ? blade * (1 - allOverlap) * 100 : toolWidth !== undefined ? toolWidth * 100 : null;
   const passes = effective('perimeter_passes');
   const autoPasses = all.perimeter_passes?.auto_value;
   const passesAuto = autoPasses !== undefined && passes === autoPasses;
-  // OpenMower's per area counts below 0 are its "the global one"
-  const omCount = (k: 'outline_count' | 'outline_overlap_count') => {
-    const v = area?.openmower?.[k];
-    return typeof v === 'number' && v >= 0 ? v : undefined;
-  };
   const passesShown = area && area.own.perimeter_passes === undefined ? (omCount('outline_count') ?? global('perimeter_passes')) : passes;
   // the outline passes the lanes reach into: the area's own, OpenMower's of the area, the one for all areas
   const overlapOwn = area ? area.own.lane_overlap_passes : global('lane_overlap_passes');
   const overlapElse = area ? (omCount('outline_overlap_count') ?? global('lane_overlap_passes')) : all.lane_overlap_passes?.default;
   const reach = typeof overlapOwn === 'number' ? overlapOwn : typeof overlapElse === 'number' ? overlapElse : 0;
-  // the angle turned further after finished mows: by this step every nth mow (an area's own step: its mowing settings)
+  // the angle turned further after finished mows: by this step every nth mow (an area's own step: its direction)
   const step = typeof global('angle_increment') === 'number' ? (global('angle_increment') as number) : 0;
   const every = typeof global('angle_increment_every') === 'number' ? (global('angle_increment_every') as number) : 1;
   const steps = planner.angle_steps ?? 0;
@@ -208,6 +324,8 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
       setState({error: e instanceof RpcError && e.code !== 'timeout' ? e.message : tr('The mower did not answer.')});
     }
   };
+  // a direction still stored for all areas, the menu doesn't offer it any more
+  const angleForAll = ANGLE_FOR_ALL.filter((k) => all[k]?.stored && all[k].value !== null && all[k].value !== undefined);
   // with the mower's sizes the planner checks its body, the lines are where its middle drove (collision mode): what the
   // lines stand for doesn't matter any more then
   const sized = ['robot_width', 'robot_front', 'robot_rear'].every((k) => (num(k) ?? -1) > 0);
@@ -223,6 +341,8 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
         : Math.max(first, 0.5 * width - Math.abs(num('blade_offset') ?? 0)) - 0.5 * blade;
   const spot = effective('turn_on_spot') === true;
   const own = area ? ownSettings(area.own, area.openmower ?? {}, all, collision) : [];
+  const margins = ownMargins(map, area?.outline);
+  const gap = num('bend_max_gap') ?? 0;
 
   // for all areas, at a glance
   const summary = area
@@ -266,11 +386,13 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
         <div className={local.summary}>
           {summary && summary.length > 0 && <p className={local.line}>{summary.join(' · ')}</p>}
           <p className={local.line}>
-            {tr('For all areas, each change is saved on the mower right away.')}
+            {tr('For all areas, each change is saved on the mower right away. An area can set its own values, that one counts there.')}
             {state.saved && <strong className={local.saved}> ✓ {tr('saved')}</strong>}
           </p>
         </div>
       )}
+
+      {plan}
 
       <Section title={tr('Pattern')}>
         {has('fill_pattern') && (
@@ -278,6 +400,7 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
             label={tr('Pattern')}
             help={tr('How the mower covers the inside of the area, after the outline passes.')}
             note={PATTERN_NOTES[String(effective('fill_pattern'))] ? tr(PATTERN_NOTES[String(effective('fill_pattern'))]) : null}
+            source={others('fill_pattern')}
           >
             <Choice
               options={PATTERNS.filter((p) => all.fill_pattern.choices?.includes(p)).map((p) => [p, tr(PATTERN_LABELS[p])])}
@@ -288,6 +411,15 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
             />
           </Row>
         )}
+        {/* the angle of the second lanes, for all areas */}
+        {!area && has('crosshatch_angle') && effective('fill_pattern') === 'crosshatch' && (
+          <Row label={tr('Crosshatch angle')} help={tr(FIELDS.crosshatch_angle.help)} note={tr('The second lanes run this far turned to the first.')}>
+            {numberField('crosshatch', degrees((global('crosshatch_angle') as number) ?? 0).toString(), '90', '°', (text) => {
+              const d = parse(text);
+              void save('crosshatch_angle', d === null ? undefined : Math.min(90, Math.max(10, d)) * DEG);
+            })}
+          </Row>
+        )}
         {has('lane_spacing_mode') && (
           <Row
             label={tr('Lane spacing')}
@@ -295,6 +427,12 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
               'How far apart the lanes are. The blade mows a little wider, so neighbouring lanes overlap. Automatic: the widest spacing that still leaves nothing standing, fewer lanes and turns.',
             )}
             note={auto ? tr('As wide as nothing stays standing.') : tr('Smaller overlaps more and takes longer. Empty: the spacing set in OpenMower.')}
+            source={
+              others('lane_spacing_mode') ||
+              (area && area.own.overlap !== undefined && allSpacingCm !== null
+                ? ownLine('overlap', tr('{cm} cm apart', {cm: Math.round(allSpacingCm * 10) / 10}))
+                : null)
+            }
           >
             <div className={local.inline}>
               <Choice
@@ -334,6 +472,7 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
                 ? tr('Turns only along the edge, about a quarter longer. With few outline passes the edge is too narrow for loops and it turns on the spot there, more passes mean less of that.')
                 : tr('Turns at the end of every lane.')
             }
+            source={others('headland_turns')}
           >
             {toggle('headland_turns')}
           </Row>
@@ -344,20 +483,111 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
             label={tr('Corners along the edge')}
             help={tr('How the drives along the outline passes take their corners: in a curve, gentle on the lawn, or sharp with a turn on the spot.')}
             note={effective('headland_corners') === 'sharp' ? tr('Sharp: it turns on the spot at the corners.') : tr('Rounded: the corners are driven in a curve.')}
+            source={others('headland_corners')}
           >
-            <Choice
-              options={[
-                ['rounded', tr('Rounded')],
-                ['sharp', tr('Sharp')],
-              ]}
-              value={value('headland_corners')}
-              like={like(global('headland_corners') === 'sharp' ? tr('Sharp') : tr('Rounded'))}
-              disabled={state.busy}
-              onChange={(v) => void save('headland_corners', v)}
-            />
+            {choice('headland_corners', {rounded: 'Rounded', sharp: 'Sharp'})}
+          </Row>
+        )}
+        {has('narrow_parts') && (
+          <Row
+            label={tr('Narrow parts')}
+            help={tr(FIELDS.narrow_parts.help)}
+            note={
+              effective('narrow_parts') === 'loops'
+                ? tr('Where lanes have no room to turn, the outline passes go on further in until it is mowed.')
+                : tr('Lanes also where they have hardly room to turn.')
+            }
+            source={others('narrow_parts')}
+          >
+            {choice('narrow_parts', FIELDS.narrow_parts.choices!)}
           </Row>
         )}
       </Section>
+
+      {area ? (
+        direction && <Section title={tr('Direction')}>{direction}</Section>
+      ) : (
+        (has('angle_strategy') || has('angle_increment') || angleForAll.length > 0) && (
+          <Section title={tr('Direction')}>
+            {has('angle_strategy') && (
+              <Row
+                label={tr('Automatic direction')}
+                help={tr(FIELDS.angle_strategy.help)}
+                note={`${tr('For areas without a mow angle of their own:')} ${tr(STRATEGY_NOTES[all.angle_strategy.stored ? String(global('angle_strategy')) : 'openmower'] ?? '')}`}
+                source={areaList(tr('Own direction:'), areasWithDirection(map, all))}
+              >
+                <Choice
+                  options={[
+                    ['openmower', tr('OpenMower')],
+                    ...STRATEGIES.filter((c) => all.angle_strategy.choices?.includes(c)).map((c): [string, string] => [c, tr(FIELDS.angle_strategy.choices![c])]),
+                  ]}
+                  value={all.angle_strategy.stored ? global('angle_strategy') : 'openmower'}
+                  disabled={state.busy}
+                  onChange={(v) => void save('angle_strategy', v === 'openmower' ? undefined : v)}
+                />
+              </Row>
+            )}
+            {has('angle_increment') && (
+              <Row
+                label={tr('Turn further')}
+                help={tr(
+                  "So the wheels don't wear tracks into the lawn: after finished mowing runs the lanes run a little turned each time. Within an area's angle range they swing back and forth between its ends, without one they go round all 180°.",
+                )}
+                note={
+                  !step
+                    ? tr('Off: the lanes run the same way every time.')
+                    : steps > 0
+                      ? tr('So far {steps} times, {deg}° in all.', {steps, deg: degrees(steps * step)})
+                      : tr('Not turned yet.')
+                }
+                source={others('angle_increment')}
+              >
+                <div className={local.inline}>
+                  {numberField('turn', String(degrees(step)), '0', '°', (text) => {
+                    const d = parse(text);
+                    void save('angle_increment', d === null ? 0 : Math.min(180, Math.max(0, d)) * DEG);
+                  })}
+                  {has('angle_increment_every') && (
+                    <>
+                      <span className={local.word}>{tr('each time after')}</span>
+                      {numberField('every', String(every), '1', every === 1 ? tr('mowing run') : tr('mowing runs'), (text) => {
+                        const n = parse(text);
+                        void save('angle_increment_every', n === null ? undefined : Math.max(1, Math.round(n)));
+                      })}
+                    </>
+                  )}
+                  {steps + mows > 0 && (
+                    <button disabled={state.busy} onClick={() => void resetAngle()}>
+                      {tr('back to 0°')}
+                    </button>
+                  )}
+                </div>
+                {!!omIncrement && (
+                  <span className={local.error}>
+                    {tr('OpenMower turns the angle further as well (mow_angle_increment {deg}°), the two add up. Set it to 0 in mower_params.yaml.', {
+                      deg: omIncrement,
+                    })}
+                  </span>
+                )}
+              </Row>
+            )}
+            {angleForAll.length > 0 && (
+              <div className={local.row}>
+                <p className={local.error}>
+                  {tr('Still stored for all areas: {what}. It changes the direction of every area, this menu no longer offers it (each area has its own angle and range).', {
+                    what: angleForAll.map((k) => `${tr(FIELDS[k]?.label ?? k)} ${shown(k, all[k].value, all[k])}`).join(', '),
+                  })}
+                </p>
+                <div className={local.inline}>
+                  <button disabled={state.busy} onClick={() => void store(Object.fromEntries(angleForAll.map((k) => [k, null])))}>
+                    {tr('Remove')}
+                  </button>
+                </div>
+              </div>
+            )}
+          </Section>
+        )
+      )}
 
       <Section
         title={tr('Edge')}
@@ -374,6 +604,7 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
                   : tr('Nothing of the mower goes past them.')
                 : tr('The middle of the mower drove them, the blade mows up to them.')
             }
+            source={others('edges')}
           >
             <Choice
               options={[
@@ -400,6 +631,7 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
                   ? tr('Always this many.')
                   : null
             }
+            source={area ? omLine('perimeter_passes', 'outline_count') : others('perimeter_passes')}
           >
             <div className={local.inline}>
               {autoPasses !== undefined && (
@@ -438,6 +670,7 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
                   ? tr('The lanes reach 1 pass further out.')
                   : tr('The lanes reach {n} passes further out.', {n: reach})
             }
+            source={area ? omLine('lane_overlap_passes', 'outline_overlap_count') : others('lane_overlap_passes')}
           >
             {numberField(
               'overlapPasses',
@@ -451,26 +684,76 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
             )}
           </Row>
         )}
+        {has('perimeter_order') && (
+          <Row
+            label={tr('Outline passes first or last')}
+            help={tr(FIELDS.perimeter_order.help)}
+            note={
+              effective('perimeter_order') === 'last'
+                ? tr('Last: they mow over the marks the turns leave at the edge.')
+                : tr('First: the lanes come after them.')
+            }
+            source={others('perimeter_order')}
+          >
+            {choice('perimeter_order', FIELDS.perimeter_order.choices!)}
+          </Row>
+        )}
         {has('edge_margin') && (
           <Row
             label={tr('Distance to the edge')}
             help={tr('How far the mower keeps its whole body off the real edge, everywhere. More is safer along walls and beds, less mows closer.')}
             note={tr('The body keeps this far off the real edge.')}
+            source={others('edge_margin') || ownLine('edge_margin')}
           >
             {cmField('edge_margin')}
           </Row>
         )}
       </Section>
 
-      {has('obstacle_margin') && (
+      {(has('obstacle_margin') || has('bend_max_gap') || (!area && has('nested_areas'))) && (
         <Section title={tr('Obstacles')}>
-          <Row
-            label={tr('Distance to obstacles')}
-            help={tr('How far the mower keeps its body off obstacles, areas not mowed and inactive ones. An obstacle can have its own distance, in the editor under the obstacle.')}
-            note={tr('Each obstacle can have its own, in the editor.')}
-          >
-            {cmField('obstacle_margin')}
-          </Row>
+          {has('obstacle_margin') && (
+            <Row
+              label={tr('Distance to obstacles')}
+              help={tr('How far the mower keeps its body off obstacles, areas not mowed and inactive ones. An obstacle can have its own distance, in the editor under the obstacle, that one counts there.')}
+              note={margins.length ? null : tr('Each obstacle can have its own, in the editor.')}
+              source={
+                <>
+                  {others('obstacle_margin') || ownLine('obstacle_margin')}
+                  {areaList(area ? tr('These obstacles here keep their own distance instead:') : tr('These keep their own distance instead:'), margins)}
+                </>
+              }
+            >
+              {cmField('obstacle_margin')}
+            </Row>
+          )}
+          {has('bend_max_gap') && (
+            <Row
+              label={tr('Lanes around obstacles')}
+              help={tr(FIELDS.bend_max_gap.help)}
+              note={
+                gap > 0
+                  ? tr('A lane goes on around an obstacle up to {m} m long, the area isn’t split there.', {m: meters(gap)})
+                  : tr('Off: an obstacle splits the lanes, the parts are mowed one after another.')
+              }
+              source={others('bend_max_gap') || ownLine('bend_max_gap')}
+            >
+              {mField('bend_max_gap', 20)}
+            </Row>
+          )}
+          {!area && has('nested_areas') && (
+            <Row
+              label={tr('Areas inside areas')}
+              help={tr(FIELDS.nested_areas.help)}
+              note={
+                global('nested_areas')
+                  ? tr('A mowing area lying in another is mowed round and planned on its own.')
+                  : tr('Off: the bigger area mows across one lying in it.')
+              }
+            >
+              {toggle('nested_areas')}
+            </Row>
+          )}
         </Section>
       )}
 
@@ -483,8 +766,23 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
                 'Where a plain curve doesn’t fit (at the end of a lane, on the way into one), the mower drives a loop, gentle on the lawn, or turns on the spot, about 14 % quicker but the wheels may scuff the lawn. Curves that fit stay curves.',
               )}
               note={spot ? tr('On the spot: quicker, harder on the lawn.') : tr('In a loop: gentle on the lawn.')}
+              source={others('turn_on_spot')}
             >
               {either('turn_on_spot', tr('In a loop'), tr('On the spot'))}
+            </Row>
+          )}
+          {/* only with loops, turning on the spot leaves loops out anyway */}
+          {!area && has('smooth_spins') && !spot && (
+            <Row
+              label={tr('Loops on the way too')}
+              help={tr(FIELDS.smooth_spins.help)}
+              note={
+                global('smooth_spins') !== false
+                  ? tr('Also elsewhere a small loop where it would turn on the spot.')
+                  : tr('Off: loops only at the ends of the lanes, elsewhere it turns on the spot.')
+              }
+            >
+              {toggle('smooth_spins')}
             </Row>
           )}
           {has('spin_margin') && (
@@ -494,6 +792,7 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
                 'Where the mower turns on the spot, and on the last bit before, its body keeps this much more distance to the edge and to obstacles: it often wanders a little while turning.',
               )}
               note={tr('On top of the distances to the edge and to obstacles.')}
+              source={others('spin_margin') || ownLine('spin_margin')}
             >
               {cmField('spin_margin')}
             </Row>
@@ -505,6 +804,7 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
                 "Turns, loops and drives aren't tighter than this. Where no curve this wide fits, a kink in a tight spot is rounded tighter instead of turning on the spot. The tighter a curve, the slower the inner wheel turns, at the tightest it stands still or turns backwards and tears the lawn. At half the distance between the drive wheels the inner wheel just stands still: take a little more.",
               )}
               note={tr('Larger is gentler on the lawn, needs more room at the edge.')}
+              source={others('min_turn_radius') || ownLine('min_turn_radius')}
             >
               {numberField(
                 'least',
@@ -523,6 +823,7 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
               label={tr('Back up where needed')}
               help={tr('Possible because OpenMower on this mower backs up along the plan. Where no turn fits going forwards (a tight corner), the mower backs up briefly instead of turning on the spot.')}
               note={effective('allow_reverse') ? tr('A three-point turn in tight corners.') : tr('Turns on the spot in tight corners.')}
+              source={others('allow_reverse')}
             >
               {toggle('allow_reverse')}
             </Row>
@@ -534,6 +835,7 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
                 'Every plan is checked against the mower’s body. Where it would stick out past a real edge or into an obstacle (a turn, a loop in a tight spot), the mower drives there another way and leaves a little out where nothing fits. The places show on the map with the plan. Off: the plan as it comes, the distances still count.',
               )}
               note={effective('body_fit') === false ? tr('Off: the plan stays as it comes.') : tr('Where the body would stick out, it drives another way.')}
+              source={others('body_fit')}
             >
               {toggle('body_fit')}
             </Row>
@@ -541,50 +843,35 @@ export function PlannerSimple({area, toolWidth, omIncrement}: {area?: Area; tool
         </Section>
       )}
 
-      {/* an area's own step is with its angle, in its mowing settings */}
-      {!area && has('angle_increment') && (
-        <Section title={tr('Mowing direction')}>
-          <Row
-            label={tr('Turn further')}
-            help={tr(
-              "So the wheels don't wear tracks into the lawn: after finished mowing runs the lanes run a little turned each time. Within an area's angle range they swing back and forth between its ends, without one they go round all 180°.",
-            )}
-            note={
-              !step
-                ? tr('Off: the lanes run the same way every time.')
-                : steps > 0
-                  ? tr('So far {steps} times, {deg}° in all.', {steps, deg: degrees(steps * step)})
-                  : tr('Not turned yet.')
-            }
-          >
-            <div className={local.inline}>
-              {numberField('turn', String(degrees(step)), '0', '°', (text) => {
-                const d = parse(text);
-                void save('angle_increment', d === null ? 0 : Math.min(180, Math.max(0, d)) * DEG);
-              })}
-              {has('angle_increment_every') && (
-                <>
-                  <span className={local.word}>{tr('each time after')}</span>
-                  {numberField('every', String(every), '1', every === 1 ? tr('mowing run') : tr('mowing runs'), (text) => {
-                    const n = parse(text);
-                    void save('angle_increment_every', n === null ? undefined : Math.max(1, Math.round(n)));
-                  })}
-                </>
-              )}
-              {steps + mows > 0 && (
-                <button disabled={state.busy} onClick={() => void resetAngle()}>
-                  {tr('back to 0°')}
-                </button>
-              )}
-            </div>
-            {!!omIncrement && (
-              <span className={local.error}>
-                {tr('OpenMower turns the angle further as well (mow_angle_increment {deg}°), the two add up. Set it to 0 in mower_params.yaml.', {
-                  deg: omIncrement,
-                })}
-              </span>
-            )}
-          </Row>
+      {(has('route_order') || (!area && has('transit_edge_distance'))) && (
+        <Section title={tr('Drives between the parts')}>
+          {has('route_order') && (
+            <Row
+              label={tr('Order of the parts')}
+              help={tr(FIELDS.route_order.help)}
+              note={
+                effective('route_order') === 'optimized'
+                  ? tr('The order with the shortest drives between the parts, takes a little longer to plan.')
+                  : tr('The closest part not mowed yet comes next.')
+              }
+              source={others('route_order')}
+            >
+              {choice('route_order', FIELDS.route_order.choices!)}
+            </Row>
+          )}
+          {!area && has('transit_edge_distance') && (
+            <Row
+              label={tr('Drives away from edges')}
+              help={tr(FIELDS.transit_edge_distance.help)}
+              note={
+                (num('transit_edge_distance') ?? 0) > 0
+                  ? tr('Drives keep this far from walls and beds where that costs little more.')
+                  : tr('Off: drives take the shortest way.')
+              }
+            >
+              {mField('transit_edge_distance', 5)}
+            </Row>
+          )}
         </Section>
       )}
 

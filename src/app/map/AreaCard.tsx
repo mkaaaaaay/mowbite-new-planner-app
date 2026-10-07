@@ -112,7 +112,7 @@ export default function AreaCard({
         )}
         {marginShown && (
           <label className={styles.toggle}>
-            {tr('Distance')}
+            {tr('Own distance')}
             <input
               className={styles.marginInput}
               inputMode="decimal"
@@ -129,6 +129,13 @@ export default function AreaCard({
               })}
             </InfoTip>
           </label>
+        )}
+        {marginShown && (
+          <span className={styles.dim}>
+            {marginCm
+              ? tr('Counts here in place of the {cm} cm for all obstacles (planner menu, Obstacles).', {cm: defaultCm})
+              : tr('Empty: the {cm} cm for all obstacles (planner menu, Obstacles).', {cm: defaultCm})}
+          </span>
         )}
         <span className={styles.dim}>
           {area.properties.active === false

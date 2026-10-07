@@ -77,11 +77,6 @@ export function AreaPlanner({
           </div>
         );
       })}
-      {typeof own.angle_strategy === 'string' && (
-        <p className={local.note}>
-          {tr("With a direction worked out by the planner, this area's mow angle doesn't count.")}
-        </p>
-      )}
     </div>
   );
 }

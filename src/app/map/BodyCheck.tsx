@@ -71,6 +71,18 @@ export function BodyCheck({request, onSpots}: {request: PlanRequest | null; onSp
   );
 }
 
+// the planner's lines it has words for here, the others as they come
+function warningText(w: string): string {
+  const ends = /^(\d+) lanes? shortened or left out where the body would stick out at (?:their|its) ends/.exec(w);
+  if (ends) {
+    const n = Number(ends[1]);
+    return n === 1
+      ? tr('1 lane shortened or left out at its ends, the body would stick out there')
+      : tr('{n} lanes shortened or left out at their ends, the body would stick out there', {n});
+  }
+  return w;
+}
+
 // With a planner that checks the body in every plan (collision mode): what it found in the plan shown, no button.
 // The places are on the map (MapView fitPlaces, turnPlaces)
 export function PlanChecks({checks, on}: {checks: Checks | undefined; on: boolean}) {
@@ -112,7 +124,7 @@ export function PlanChecks({checks, on}: {checks: Checks | undefined; on: boolea
       {(checks?.turns.length ?? 0) > 0 && <span className={styles.dim}>{tr('{n} turns still in the field of lanes', {n: checks!.turns.length})}</span>}
       {checks?.warnings.map((w, i) => (
         <span key={i} className={styles.dim}>
-          {w}
+          {warningText(w)}
         </span>
       ))}
     </div>

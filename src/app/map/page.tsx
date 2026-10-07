@@ -22,7 +22,7 @@ import {deleteBackup, listBackups, loadBackup, saveBackup, type BackupInfo} from
 import AreaCard from './AreaCard';
 import {type UpdateArea, NEW_AREA_SETTINGS} from './editing';
 import EditorToolbar from './EditorToolbar';
-import MowSettings, {AngleOnMap} from './MowSettings';
+import MowSettings, {AngleOnMap, AreaDirection, AreaPlanInfo} from './MowSettings';
 import OrderBox from './OrderBox';
 import {DrawPanel, MergePanel, RestorePanel, SimplifyPanel, SplitPanel} from './Panels';
 import {PARAM} from '@/lib/openmower';
@@ -500,6 +500,41 @@ function MapEditor() {
     }
   };
 
+  // the selected mowing area's angle and plan (MowSettings), with the planner in its menu
+  const mowProps =
+    selectedArea && mode === 'idle' && simplifyCm === null && selectedArea.properties.type === 'mow'
+      ? {
+          area: selectedArea,
+          autoAngle,
+          globalValue,
+          remember,
+          update: updateProperties,
+          showStripes,
+          onToggleStripes: () => setShowStripes(!showStripes),
+          onAngleEdit: touchAngle,
+          toolWidth,
+          mismatch,
+          previewCorrection,
+          planFromMower: !!realPlan,
+          planChosen: plan?.chosen,
+          byPlanner: !!plannerSettings,
+          planAngle: realPlan?.angle,
+          planLength: shownArea?.properties.mowable === false || shownArea?.properties.active === false ? 0 : planLength,
+          onPreviewCorrection: setPreviewCorrection,
+          angle: {offset: angleOffset, offsetIsAbsolute, increment: angleIncrement},
+        }
+      : null;
+  // a mow angle set wins: the area's own way of working the direction out goes, the planner would take that first
+  const updateDirection: UpdateArea = (patch, undoable) => {
+    const own = selectedArea?.properties.planner;
+    if (patch.angle !== undefined && own?.angle_strategy !== undefined) {
+      const rest = {...own};
+      delete rest.angle_strategy;
+      return updateProperties({...patch, planner: Object.keys(rest).length ? rest : undefined}, undoable);
+    }
+    updateProperties(patch, undoable);
+  };
+
   return (
     <div className={styles.page}>
       <main className={styles.main}>
@@ -692,7 +727,7 @@ function MapEditor() {
                       with the area */}
                   {plannerSettings && (
                     <Fold id="plannerAll" title={tr('Planner for all areas')}>
-                      <PlannerSimple toolWidth={toolWidth} omIncrement={angleIncrement} />
+                      <PlannerSimple toolWidth={toolWidth} omIncrement={angleIncrement} map={map} onSelectArea={selectArea} />
                       <details className={simpleStyles.expert}>
                         <summary>{tr('More settings (expert)')}</summary>
                         <div className={styles.foldCards}>
@@ -765,35 +800,22 @@ function MapEditor() {
                 />
               )}
 
-              {selectedArea && mode === 'idle' && simplifyCm === null && selectedArea.properties.type === 'mow' && (
+              {/* without the planner: OpenMower's own settings of the area, its angle and its plan */}
+              {mowProps && !plannerSettings && (
                 <Fold id="mow" title={tr('Mowing settings')}>
-                  <MowSettings
-                    area={selectedArea}
-                    autoAngle={autoAngle}
-                    globalValue={globalValue}
-                    remember={remember}
-                    update={updateProperties}
-                    showStripes={showStripes}
-                    onToggleStripes={() => setShowStripes(!showStripes)}
-                    onAngleEdit={touchAngle}
-                    toolWidth={toolWidth}
-                    mismatch={mismatch}
-                    previewCorrection={previewCorrection}
-                    planFromMower={!!realPlan}
-                    planChosen={plan?.chosen}
-                    byPlanner={!!plannerSettings}
-                    planAngle={realPlan?.angle}
-                    planLength={shownArea?.properties.mowable === false || shownArea?.properties.active === false ? 0 : planLength}
-                    onPreviewCorrection={setPreviewCorrection}
-                    angle={{offset: angleOffset, offsetIsAbsolute, increment: angleIncrement}}
-                  />
+                  <MowSettings {...mowProps} />
                 </Fold>
               )}
-              {selectedArea && mode === 'idle' && simplifyCm === null && selectedArea.properties.type === 'mow' && plannerSettings && (
-                <Fold id="planner" title={tr('Planner for this area')}>
+              {/* with the planner everything of the area in one place, in the sections of the planner menu */}
+              {mowProps && selectedArea && plannerSettings && (
+                <Fold id="area" title={tr('This area')}>
                   <PlannerSimple
                     toolWidth={toolWidth}
                     omIncrement={angleIncrement}
+                    map={map}
+                    onSelectArea={selectArea}
+                    plan={<AreaPlanInfo {...mowProps} />}
+                    direction={<AreaDirection {...mowProps} update={updateDirection} />}
                     area={{
                       own: selectedArea.properties.planner ?? {},
                       openmower: {
@@ -801,10 +823,12 @@ function MapEditor() {
                         outline_overlap_count: selectedArea.properties.outline_overlap_count,
                         outline_offset: selectedArea.properties.outline_offset,
                       },
+                      dropOpenMower: (key) => updateProperties({[key]: undefined}),
                       // OpenMower's values go too, they'd count over the ones for all areas
                       clear: () =>
                         updateProperties({planner: undefined, outline_count: undefined, outline_overlap_count: undefined, outline_offset: undefined}),
                       planned: plan?.chosen?.perimeter_passes,
+                      outline: selectedArea.outline,
                       set: (key, value) => {
                         const own = {...(selectedArea.properties.planner ?? {})};
                         if (value === undefined || value === null) delete own[key];

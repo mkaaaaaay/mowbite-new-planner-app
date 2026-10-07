@@ -2,7 +2,7 @@
 
 import {tr} from '@/lib/i18n';
 import {loadPlannerSettings, savePlannerSettings, usePlannerSettings, type PlannerSetting} from '@/lib/mowerBody';
-import {BODY_KEYS, COUNTED, DROPPED, DROPPED_CHOICES, FIELDS, fromInput, GROUPS, SIMPLE, toInput, type Field, type Group} from '@/lib/plannerFields';
+import {ANGLE_FOR_ALL, BODY_KEYS, COUNTED, DROPPED, DROPPED_CHOICES, FIELDS, fromInput, GROUPS, SIMPLE, toInput, type Field, type Group} from '@/lib/plannerFields';
 import {RpcError} from '@/lib/rpc';
 import {useEffect, useState} from 'react';
 import InfoTip from './InfoTip';
@@ -10,7 +10,7 @@ import local from './PlannerSettings.module.css';
 
 // The MowBite Planner's settings for all areas the planner menu at the map doesn't have (planner.settings /
 // planner.settings.set), each saved right away. Built from what the planner reports, so a newer planner's settings
-// show up too. An area can set some of them for itself (Planner for this area).
+// show up too. An area can set some of them for itself (This area).
 
 type Styles = Record<string, string>;
 type Value = string | string[];
@@ -214,8 +214,10 @@ export function PlannerSettings({styles}: {styles: Styles}) {
 
   const all = settings.settings;
   const shown = {...formFrom(all), ...form};
-  // the ones the planner menu above doesn't have
-  const keys = Object.keys(all).filter((k) => !BODY_KEYS.includes(k) && !DROPPED.includes(k) && !SIMPLE.includes(k) && all[k].settable);
+  // the ones the planner menu above doesn't have (a direction for all areas: each area has its own)
+  const keys = Object.keys(all).filter(
+    (k) => !BODY_KEYS.includes(k) && !DROPPED.includes(k) && !SIMPLE.includes(k) && !ANGLE_FOR_ALL.includes(k) && all[k].settable,
+  );
   const fixed = Object.keys(all).filter((k) => !all[k].settable && !COUNTED.includes(k));
   const group = (k: string): Group => FIELDS[k]?.group ?? 'fine';
   const advanced = (k: string) => !FIELDS[k] || !!FIELDS[k].advanced;
@@ -289,13 +291,8 @@ export function PlannerSettings({styles}: {styles: Styles}) {
         {state.saved && <span className={styles.dim}>✓ {tr('saved')}</span>}
       </div>
       <p className={styles.dim}>
-        {tr('For all areas, each one is saved on the mower right away. An area can set some of them for itself (Planner for this area).')}
+        {tr('For all areas, each one is saved on the mower right away. An area can set some of them for itself (This area).')}
       </p>
-      {settings.own_angle && (
-        <p className={styles.error}>
-          {tr("A direction is set here: it wins over the areas' mow angle, but for areas with an angle of their own.")}
-        </p>
-      )}
       {GROUPS.map((g) => {
         const main = keys.filter((k) => group(k) === g.key && !advanced(k));
         if (!main.length) return null;

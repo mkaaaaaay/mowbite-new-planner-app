@@ -193,3 +193,21 @@
 .expert > summary::-webkit-details-marker {
   display: none;
 }
+
+/* which value counts where: the areas with one of their own, an area's own one, OpenMower's */
+.source {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
