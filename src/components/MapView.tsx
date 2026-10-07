@@ -44,6 +44,8 @@ interface MapViewProps {
   onInsertPending?: (index: number, x: number, y: number) => void;
   // fixed window around the mower instead of fitting the whole map, a button lets the map move freely
   follow?: boolean;
+  // a button that keeps the map at the top of the page on a phone (MapControls)
+  pin?: {on: boolean; onToggle: () => void};
   followSpanMeters?: number;
   // oldest first
   // the live trail in pieces (see useMowerTrack), finished pieces keep their identity
@@ -306,6 +308,7 @@ export default function MapView({
   onMovePending,
   onInsertPending,
   follow = false,
+  pin,
   followSpanMeters = 6,
   track,
   pastTrack,
@@ -1396,6 +1399,7 @@ export default function MapView({
               }
             : null
         }
+        pin={pin}
         follow={
           follow
             ? {
