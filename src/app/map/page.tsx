@@ -29,6 +29,7 @@ import {PARAM} from '@/lib/openmower';
 import {rpcErrorText} from '@/lib/rpcText';
 import {closedRings} from '@/lib/rings';
 import {saveFile} from '@/lib/saveFile';
+import {savePlanCase} from '@/lib/planCase';
 import {useAreaProperties} from '@/lib/areaProps';
 import {useMowPlan} from './useMowPlan';
 import {useMapEdits} from './useMapEdits';
@@ -525,6 +526,17 @@ function MapEditor() {
           planLength: shownArea?.properties.mowable === false || shownArea?.properties.active === false ? 0 : planLength,
           onPreviewCorrection: setPreviewCorrection,
           angle: {offset: angleOffset, offsetIsAbsolute, increment: angleIncrement},
+          onSaveCase: planRequest
+            ? () =>
+                savePlanCase({
+                  areaId: selectedArea.id,
+                  areaName: selectedArea.properties.name ?? '',
+                  request: planRequest,
+                  viaPlanner: !!plannerSettings && !slic3r,
+                  map: liveMap,
+                  params,
+                })
+            : undefined,
         }
       : null;
   // a mow angle set wins: the area's own way of working the direction out goes, the planner would take that first

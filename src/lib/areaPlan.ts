@@ -119,15 +119,21 @@ export type PlanRequest = ({area_id: string} & PlanProps) | ({outline: Point[]; 
 // planner settings as edited and says what it planned with (the lane spacing it picked). mowing.plan only knows
 // OpenMower's area settings
 export async function mowerPlan(req: PlanRequest, viaPlanner = false): Promise<MowPlan | null> {
+  const asked = await mowerPlanAnswer(req, viaPlanner);
+  return asked ? readPlan(asked.answer as PlanAnswer) : null;
+}
+
+// the mower's answer as it comes, and the method that gave it
+export async function mowerPlanAnswer(req: PlanRequest, viaPlanner = false): Promise<{method: string; answer: unknown} | null> {
   const known = await rpcMethods();
   if ((viaPlanner || req.settings) && known?.has(RPC.plannerPlan)) {
     // with the body checked a plan takes the mower 10 to 20 s, more for a whole new one
-    return readPlan(await callRpc(RPC.plannerPlan, req, 90000));
+    return {method: RPC.plannerPlan, answer: await callRpc(RPC.plannerPlan, req, 90000)};
   }
   if (!known?.has(RPC.areaPlan)) return null;
   // mowing.plan doesn't take planner settings
   const plain = Object.fromEntries(Object.entries(req).filter(([k]) => k !== 'settings'));
-  return readPlan(await callRpc(RPC.areaPlan, plain, 20000));
+  return {method: RPC.areaPlan, answer: await callRpc(RPC.areaPlan, plain, 20000)};
 }
 
 // the plan in the order it's driven, for showing the progress of a run

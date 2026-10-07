@@ -98,6 +98,8 @@ type Props = {
   planChosen?: PlanChosen;
   // the MowBite Planner is on the mower: the outline passes are set in its menu, not here
   byPlanner?: boolean;
+  // the plan with what it was made from as a file
+  onSaveCase?: () => Promise<void>;
 };
 
 // without the MowBite Planner: the per-area overrides of OpenMower's mowing settings, the angle and the plan
@@ -331,6 +333,7 @@ export function AreaPlanInfo({
   planAngle,
   planLength,
   planChosen,
+  onSaveCase,
 }: Props) {
   const rate = savedRate();
   const slic3r = slic3rPlans(usePlannerSettings());
@@ -374,6 +377,7 @@ export function AreaPlanInfo({
           </InfoTip>
         </p>
       )}
+      {showStripes && onSaveCase && <SaveCase save={onSaveCase} />}
       {mismatch && (
         <div className={styles.warning}>
           <p>
@@ -399,6 +403,34 @@ export function AreaPlanInfo({
         </div>
       )}
     </div>
+  );
+}
+
+// for a plan that looks wrong: it and everything it was made from as a file, so it can be planned again the same way
+function SaveCase({save}: {save: () => Promise<void>}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <p className={styles.dim}>
+      <button
+        type="button"
+        className={simple.link}
+        disabled={busy}
+        onClick={() => {
+          setBusy(true);
+          setError(null);
+          save()
+            .catch((e: unknown) => setError(e instanceof Error ? e.message : tr('failed')))
+            .finally(() => setBusy(false));
+        }}
+      >
+        {busy ? tr('Saving the plan…') : tr('Save the plan as a file')}
+      </button>
+      <InfoTip>
+        {tr("The plan with what it was made from: the map, the planner's settings and OpenMower's mowing settings. For a plan that looks wrong, it can be planned again exactly the same way from it.")}
+      </InfoTip>
+      {error && <span className={styles.error}> {error}</span>}
+    </p>
   );
 }
 

@@ -1045,6 +1045,9 @@ const de: Record<string, string> = {
   "Empty: OpenMower's value for all areas (mower_params.yaml).": "Leer: der Wert von OpenMower für alle Flächen (mower_params.yaml).",
   "Only with the MowBite Planner:": "Gilt nur mit dem MowBite-Planer:",
   "from the mower, slic3r": "vom Mäher, slic3r",
+  "Save the plan as a file": "Plan als Datei speichern",
+  "Saving the plan…": "Plan wird gespeichert …",
+  "The plan with what it was made from: the map, the planner's settings and OpenMower's mowing settings. For a plan that looks wrong, it can be planned again exactly the same way from it.": "Der Plan mit allem, woraus er entstanden ist: Karte, Planer-Einstellungen und Mäh-Einstellungen von OpenMower. Für einen Plan, der falsch aussieht: Damit lässt er sich genau so noch einmal planen.",
 };
 
 export default de;
