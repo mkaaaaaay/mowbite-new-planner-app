@@ -30,7 +30,6 @@ const de: Record<string, string> = {
   "Charging time": "Ladedauer",
   "CPU load": "CPU-Last",
   "CPU temperature": "CPU-Temperatur",
-  "Already drawn the inner area? Select it, the note there cuts it out in one click.": "Innere Fläche schon gezeichnet? Wähle sie aus, der Hinweis dort schneidet sie mit einem Klick aus.",
   "Data volume": "Datenlaufwerk",
   "Each start time has its own days, times and areas. For a plan per area, add a start time for each and pick only that area.": "Jede Startzeit hat eigene Tage, Zeiten und Flächen. Für einen eigenen Plan pro Fläche lege je eine Startzeit an und wähle nur diese Fläche.",
   "End pause": "Pause beenden",
@@ -457,7 +456,6 @@ const de: Record<string, string> = {
   "Only possible while the mower is idle in the dock.": "Geht nur, wenn der Mäher bereit im Dock steht.",
   "The mower dropped out of recording mode right away. Older OpenMower versions do that after the mower was sent home while mowing, it then stays in \"manual pause\" until it's restarted. Run openmower restart on the mower and try again, or update OpenMower.": "Der Mäher hat den Aufnahmemodus sofort wieder verlassen. Ältere OpenMower-Versionen machen das, nachdem der Mäher beim Mähen nach Hause geschickt wurde, er bleibt dann bis zum Neustart in „manueller Pause“. Führe openmower restart auf dem Mäher aus und versuch es noch mal, oder aktualisiere OpenMower.",
   "Only possible while the mower is idle.": "Geht nur, wenn der Mäher bereit steht.",
-  "only problems": "nur Probleme",
   "Other": "Sonstiges",
   "Other mowers": "Weitere Mäher",
   "Outline done. Record obstacles inside it (beds, trees, the pond), or save the area.": "Rand fertig. Nimm Hindernisse darin auf (Beete, Bäume, den Teich) oder speichere die Fläche.",
@@ -1048,6 +1046,10 @@ const de: Record<string, string> = {
   "Save the plan as a file": "Plan als Datei speichern",
   "Saving the plan…": "Plan wird gespeichert …",
   "The plan with what it was made from: the map, the planner's settings and OpenMower's mowing settings. For a plan that looks wrong, it can be planned again exactly the same way from it.": "Der Plan mit allem, woraus er entstanden ist: Karte, Planer-Einstellungen und Mäh-Einstellungen von OpenMower. Für einen Plan, der falsch aussieht: Damit lässt er sich genau so noch einmal planen.",
+  "Skip this path": "Diesen Pfad überspringen",
+  "The mower leaves the rest of the outline pass or lanes it is on and goes on with the next ones.": "Der Mäher lässt den Rest der Randrunde oder Bahnen aus, auf denen er gerade ist, und macht mit den nächsten weiter.",
+  "all": "Alle",
+  "progress": "Ablauf",
 };
 
 export default de;
