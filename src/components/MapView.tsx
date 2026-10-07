@@ -61,7 +61,7 @@ interface MapViewProps {
   openLoops?: boolean;
   // how far the current run got in the mower's plan: what's left is drawn, the planned part it has done only if
   // switched on in the layer menu (the track shows what it really drove)
-  progress?: {done: Point[][]; todo: Point[][]};
+  progress?: {todo: Point[][]};
   // shapes an edit would give (split pieces, merge result), drawn in two alternating colors
   preview?: Point[][];
   // click on the map where there's no area
@@ -603,11 +603,8 @@ export default function MapView({
     () => (loops?.length ? pathOf(loops, {minX, minY, scale, padX, padY}, !openLoops) : ''),
     [loops, openLoops, minX, minY, scale, padX, padY],
   );
-  const progressPaths = useMemo(
-    () =>
-      progress
-        ? {todo: pathOf(progress.todo, {minX, minY, scale, padX, padY}), done: pathOf(progress.done, {minX, minY, scale, padX, padY})}
-        : null,
+  const todoPath = useMemo(
+    () => (progress ? pathOf(progress.todo, {minX, minY, scale, padX, padY}) : null),
     [progress, minX, minY, scale, padX, padY],
   );
   const swathLayer = useMemo(
@@ -1158,12 +1155,7 @@ export default function MapView({
 
         {edges && <path className={styles.realEdge} d={edges} />}
 
-        {progressPaths && !hidden.has('stripes') && (
-          <>
-            <path className={[styles.planTodo, styles[planStyle]].join(' ')} d={progressPaths.todo} />
-            {layerOn(hidden, 'planDone') && <path className={styles.planDone} d={progressPaths.done} />}
-          </>
-        )}
+        {todoPath && !hidden.has('stripes') && <path className={[styles.planTodo, styles[planStyle]].join(' ')} d={todoPath} />}
 
         {swathLayer}
 
