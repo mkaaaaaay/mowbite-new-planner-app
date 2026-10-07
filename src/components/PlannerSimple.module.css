@@ -211,3 +211,15 @@
   text-decoration: underline;
   cursor: pointer;
 }
+
+/* the sections, greyed out while OpenMower's slic3r planner plans: they only count with the MowBite Planner */
+.sections,
+.off {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.off {
+  opacity: 0.4;
+}

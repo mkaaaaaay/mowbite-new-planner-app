@@ -302,6 +302,12 @@ export const FIELDS: Record<string, Field> = {
     step: 0.5,
     advanced: true,
   },
+  planner: {
+    label: 'Planner',
+    help: "Which planner works out the plans of all areas: the MowBite Planner with the settings here, or OpenMower's own slic3r planner like without MowBite, with OpenMower's outline passes, lane spacing and mow angles and no collision check. It counts from the next plan.",
+    group: 'fine',
+    choices: {mowbite: 'MowBite', slic3r: 'slic3r (OpenMower)'},
+  },
   waypoint_spacing: {label: 'Point spacing', help: 'Distance between the points of the path.', group: 'fine', unit: 'm', step: 0.01, advanced: true},
   transit_clearance: {label: 'Clearance of drives', help: 'Drives keep this far from the outline passes.', group: 'fine', unit: 'm', step: 0.01, advanced: true},
   simplify_tolerance: {label: 'Outline smoothing', help: 'Outlines and obstacles are smoothed this much first.', group: 'fine', unit: 'm', step: 0.01, advanced: true},
@@ -317,6 +323,7 @@ export const DROPPED_CHOICES: Record<string, string[]> = {fill_pattern: ['auto']
 export const COUNTED = ['angle_steps'];
 // in the planner menu at the map (PlannerSimple), the lists for experts leave them out
 export const SIMPLE = [
+  'planner',
   'fill_pattern',
   'crosshatch_angle',
   'lane_spacing_mode',

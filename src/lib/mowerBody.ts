@@ -176,6 +176,10 @@ export function usePlannerSettings(): PlannerSettings | null | undefined {
   return useSyncExternalStore(subscribe, plannerSettings, () => undefined);
 }
 
+// OpenMower's own slic3r planner switched on in the MowBite Planner (its setting planner): the plans come from it, the
+// MowBite Planner's own settings don't count then
+export const slic3rPlans = (s: PlannerSettings | null | undefined) => s?.settings.planner?.value === 'slic3r';
+
 // where the planner found the body sticking out beyond what the map allows, with what the mower does there
 export interface BodySpot {
   x: number;

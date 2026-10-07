@@ -1,6 +1,6 @@
 import InfoTip from '@/components/InfoTip';
 import {useAreaProperties} from '@/lib/areaProps';
-import {usePlannerSettings} from '@/lib/mowerBody';
+import {slic3rPlans, usePlannerSettings} from '@/lib/mowerBody';
 import {FIELDS} from '@/lib/plannerFields';
 import simple from '@/components/PlannerSimple.module.css';
 import {tr} from '@/lib/i18n';
@@ -102,7 +102,20 @@ type Props = {
 
 // without the MowBite Planner: the per-area overrides of OpenMower's mowing settings, the angle and the plan
 export default function MowSettings(props: Props) {
-  const {area, globalValue, remember, update, byPlanner} = props;
+  return (
+    <div className={styles.mowSettings}>
+      <span className={styles.cardTitle}>{tr('Mowing settings')}</span>
+      <p className={styles.dim}>{tr('Only for this area, saved with the map ("Save map").')}</p>
+      {!props.byPlanner && <OpenMowerArea {...props} />}
+      <AreaDirection {...props} />
+      <AreaPlanInfo {...props} />
+    </div>
+  );
+}
+
+// the per-area overrides of OpenMower's mowing settings: without the MowBite Planner, or with OpenMower's slic3r planner
+// switched on in it
+export function OpenMowerArea({area, globalValue, remember, update, inMenu}: Props & {inMenu?: boolean}) {
   const p = area.properties;
   const number = (key: Override, label: string, tip: string, step: number, min?: number) => (
     <label>
@@ -124,34 +137,27 @@ export default function MowSettings(props: Props) {
   );
 
   return (
-    <div className={styles.mowSettings}>
-      <span className={styles.cardTitle}>{tr('Mowing settings')}</span>
-      <p className={styles.dim}>{tr('Only for this area, saved with the map ("Save map").')}</p>
-      {!byPlanner &&
-        number(
-          'outline_count',
-          'Outline passes',
-          "How many rounds the mower drives along the edge before it mows the inside in stripes. Empty means the mower's global setting.",
-          1,
-          0,
-        )}
-      {!byPlanner &&
-        number(
-          'outline_overlap_count',
-          'Overlapping passes',
-          'How many of the edge rounds the stripes reach into, so no uncut strip is left between the edge and the stripes.',
-          1,
-          0,
-        )}
-      {!byPlanner &&
-        number(
-          'outline_offset',
-          'Outline offset (m)',
-          'Moves the mowing boundary in (positive, more distance to beds and walls) or out (negative). -1 to 1 m.',
-          0.05,
-        )}
-      <AreaDirection {...props} />
-      <AreaPlanInfo {...props} />
+    <div className={inMenu ? styles.openMowerMenu : styles.openMowerArea}>
+      {number(
+        'outline_count',
+        'Outline passes',
+        "How many rounds the mower drives along the edge before it mows the inside in stripes. Empty means the mower's global setting.",
+        1,
+        0,
+      )}
+      {number(
+        'outline_overlap_count',
+        'Overlapping passes',
+        'How many of the edge rounds the stripes reach into, so no uncut strip is left between the edge and the stripes.',
+        1,
+        0,
+      )}
+      {number(
+        'outline_offset',
+        'Outline offset (m)',
+        'Moves the mowing boundary in (positive, more distance to beds and walls) or out (negative). -1 to 1 m.',
+        0.05,
+      )}
     </div>
   );
 }
@@ -163,7 +169,9 @@ export function AreaDirection({area, autoAngle, remember, update, onAngleEdit, a
   const p = area.properties;
   // with the MowBite Planner: the range (it keeps it, whatever the map service says) and turning further after mows,
   // the area's own step or the one for all areas
-  const planner = usePlannerSettings();
+  // (not with OpenMower's slic3r planner switched on: the range then only where OpenMower keeps it itself)
+  const plannerSettings = usePlannerSettings();
+  const planner = slic3rPlans(plannerSettings) ? null : plannerSettings;
   const ranged = supported.has('angle_min') || !!planner;
   const turning = !!planner?.settings.angle_increment?.settable;
   const allStep = typeof planner?.settings.angle_increment?.value === 'number' ? (planner.settings.angle_increment.value as number) : 0;
@@ -325,6 +333,7 @@ export function AreaPlanInfo({
   planChosen,
 }: Props) {
   const rate = savedRate();
+  const slic3r = slic3rPlans(usePlannerSettings());
   return (
     <div className={styles.areaPlan}>
       {area.properties.active === false ? (
@@ -346,7 +355,7 @@ export function AreaPlanInfo({
                 ? ` (${tr('{n} cm apart', {n: Math.round(toolWidth * 100)})})`
                 : ''}
             {' · '}
-            {planFromMower ? tr('from the mower') : tr('estimate')}
+            {planFromMower ? (slic3r ? tr('from the mower, slic3r') : tr('from the mower')) : tr('estimate')}
             {planFromMower && planAngle !== undefined && `, ${Math.round((((planAngle * 180) / Math.PI) % 180 + 180) % 180)}°`}
             <InfoTip>
               {planFromMower

@@ -1034,6 +1034,17 @@ const de: Record<string, string> = {
   "to": "bis",
   "{n} lanes shortened or left out at their ends, the body would stick out there": "{n} Bahnen an ihren Enden gekürzt oder ausgelassen, der Körper würde dort überstehen",
   "1 lane shortened or left out at its ends, the body would stick out there": "1 Bahn an ihren Enden gekürzt oder ausgelassen, der Körper würde dort überstehen",
+  "Which planner works out the plans of all areas: the MowBite Planner with the settings here, or OpenMower's own slic3r planner like without MowBite, with OpenMower's outline passes, lane spacing and mow angles and no collision check. It counts from the next plan.": "Welcher Planer die Pläne aller Flächen berechnet: der MowBite-Planer mit den Einstellungen hier, oder der eigene slic3r-Planer von OpenMower wie ohne MowBite, mit den Randrunden, dem Bahnabstand und den Mähwinkeln von OpenMower und ohne Kollisionsprüfung. Gilt ab dem nächsten Plan.",
+  "MowBite": "MowBite",
+  "slic3r (OpenMower)": "slic3r (OpenMower)",
+  "OpenMower's slic3r planner, with OpenMower's settings": "slic3r-Planer von OpenMower, mit den Einstellungen von OpenMower",
+  "OpenMower's slic3r planner plans (Planner for all areas): OpenMower's own values of the area count, its MowBite settings only with the MowBite Planner.": "Es plant der slic3r-Planer von OpenMower (Planer für alle Flächen): Es gelten die OpenMower-Werte der Fläche, ihre MowBite-Einstellungen nur mit dem MowBite-Planer.",
+  "OpenMower's slic3r planner, as without MowBite: OpenMower's outline passes, lane spacing and mow angles, no collision check.": "Der slic3r-Planer von OpenMower, wie ohne MowBite: Randrunden, Bahnabstand und Mähwinkel von OpenMower, keine Kollisionsprüfung.",
+  "Which planner": "Welcher Planer",
+  "The MowBite Planner, with the settings below.": "Der MowBite-Planer, mit den Einstellungen unten.",
+  "Empty: OpenMower's value for all areas (mower_params.yaml).": "Leer: der Wert von OpenMower für alle Flächen (mower_params.yaml).",
+  "Only with the MowBite Planner:": "Gilt nur mit dem MowBite-Planer:",
+  "from the mower, slic3r": "vom Mäher, slic3r",
 };
 
 export default de;

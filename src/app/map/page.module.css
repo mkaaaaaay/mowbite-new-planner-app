@@ -765,3 +765,33 @@
 .areaDirection label input.dirWide[type='number'] {
   width: 190px;
 }
+
+/* OpenMower's own values of an area (MowSettings OpenMowerArea): in the card's grid, or on their own in the planner menu */
+.openMowerArea {
+  display: contents;
+}
+
+.openMowerMenu {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.openMowerMenu label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.openMowerMenu label input[type='number'] {
+  width: 140px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: transparent;
+  color: var(--foreground);
+  font-size: 14px;
+}

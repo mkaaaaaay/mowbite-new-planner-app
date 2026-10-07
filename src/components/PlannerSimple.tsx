@@ -2,7 +2,7 @@
 
 import type {MowerMap, Point} from '@/hooks/useMowerMap';
 import {tr} from '@/lib/i18n';
-import {resetPlannerAngle, savePlannerSettings, usePlannerSettings, type PlannerSetting} from '@/lib/mowerBody';
+import {resetPlannerAngle, savePlannerSettings, slic3rPlans, usePlannerSettings, type PlannerSetting} from '@/lib/mowerBody';
 import {ANGLE_FOR_ALL, FIELDS} from '@/lib/plannerFields';
 import {areasWith, areasWithDirection, ownMargins, ownSettings, shown, type AreaValue, type OpenMowerOwn} from '@/lib/plannerOwn';
 import {RpcError} from '@/lib/rpc';
@@ -123,7 +123,9 @@ function Section({title, note, children}: {title: string; note?: string | null; 
 
 // omIncrement: OpenMower's own mow_angle_increment (degrees), it adds up with the planner's turning further.
 // map: the map as edited, for the areas and obstacles with values of their own, onSelectArea selects one of them.
-// For an area: direction, its angle, range and turning further (MowSettings), plan, its plan at the top
+// For an area: direction, its angle, range and turning further (MowSettings), plan, its plan at the top, openmower,
+// OpenMower's own values of the area, for OpenMower's slic3r planner. With that one switched on (planner) the MowBite
+// Planner's settings are shown greyed out, they only count with it
 export function PlannerSimple({
   area,
   map,
@@ -132,6 +134,7 @@ export function PlannerSimple({
   omIncrement,
   direction,
   plan,
+  openmower,
 }: {
   area?: Area;
   map?: MowerMap | null;
@@ -140,6 +143,7 @@ export function PlannerSimple({
   omIncrement?: number;
   direction?: React.ReactNode;
   plan?: React.ReactNode;
+  openmower?: React.ReactNode;
 }) {
   const planner = usePlannerSettings();
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -344,25 +348,35 @@ export function PlannerSimple({
   const margins = ownMargins(map, area?.outline);
   const gap = num('bend_max_gap') ?? 0;
 
+  // OpenMower's slic3r planner plans instead of the MowBite Planner
+  const slic3r = slic3rPlans(planner);
+
   // for all areas, at a glance
   const summary = area
     ? null
-    : [
+    : slic3r
+      ? [tr("OpenMower's slic3r planner, with OpenMower's settings")]
+      : [
         tr(PATTERN_LABELS[String(global('fill_pattern'))] ?? String(global('fill_pattern') ?? '')),
         auto ? tr('spacing automatic') : spacingCm !== null ? tr('{cm} cm apart', {cm: Math.round(spacingCm * 10) / 10}) : null,
         typeof passes === 'number' ? (passesAuto ? tr('outline passes automatic') : tr('{n} outline passes', {n: passes})) : null,
         has('edge_margin') ? tr('{cm} cm off the edge', {cm: cm(global('edge_margin'))}) : null,
         has('body_fit') ? (global('body_fit') ? tr('collision check on') : tr('collision check off')) : null,
-      ].filter(Boolean);
+        ].filter(Boolean);
 
   return (
     <div className={local.simple}>
       {area ? (
         <div className={local.summary}>
           <p className={local.line}>{tr('Only for this area. Saved with the map ("Save map"), the preview shows it right away.')}</p>
+          {slic3r && (
+            <p className={local.line}>
+              {tr("OpenMower's slic3r planner plans (Planner for all areas): OpenMower's own values of the area count, its MowBite settings only with the MowBite Planner.")}
+            </p>
+          )}
           {own.length ? (
             <>
-              <p className={local.line}>
+              <p className={[local.line, slic3r ? local.idle : ''].filter(Boolean).join(' ')}>
                 {tr('This area sets itself:')}{' '}
                 {own.map((o, i) => (
                   <span key={o.key} className={o.idle ? local.idle : undefined}>
@@ -392,488 +406,524 @@ export function PlannerSimple({
         </div>
       )}
 
-      {plan}
-
-      <Section title={tr('Pattern')}>
-        {has('fill_pattern') && (
+      {!area && has('planner') && (
+        <Section title={tr('Planner')}>
           <Row
-            label={tr('Pattern')}
-            help={tr('How the mower covers the inside of the area, after the outline passes.')}
-            note={PATTERN_NOTES[String(effective('fill_pattern'))] ? tr(PATTERN_NOTES[String(effective('fill_pattern'))]) : null}
-            source={others('fill_pattern')}
-          >
-            <Choice
-              options={PATTERNS.filter((p) => all.fill_pattern.choices?.includes(p)).map((p) => [p, tr(PATTERN_LABELS[p])])}
-              value={value('fill_pattern')}
-              like={like(tr(PATTERN_LABELS[String(global('fill_pattern'))] ?? String(global('fill_pattern'))))}
-              disabled={state.busy}
-              onChange={(v) => void save('fill_pattern', v)}
-            />
-          </Row>
-        )}
-        {/* the angle of the second lanes, for all areas */}
-        {!area && has('crosshatch_angle') && effective('fill_pattern') === 'crosshatch' && (
-          <Row label={tr('Crosshatch angle')} help={tr(FIELDS.crosshatch_angle.help)} note={tr('The second lanes run this far turned to the first.')}>
-            {numberField('crosshatch', degrees((global('crosshatch_angle') as number) ?? 0).toString(), '90', '°', (text) => {
-              const d = parse(text);
-              void save('crosshatch_angle', d === null ? undefined : Math.min(90, Math.max(10, d)) * DEG);
-            })}
-          </Row>
-        )}
-        {has('lane_spacing_mode') && (
-          <Row
-            label={tr('Lane spacing')}
-            help={tr(
-              'How far apart the lanes are. The blade mows a little wider, so neighbouring lanes overlap. Automatic: the widest spacing that still leaves nothing standing, fewer lanes and turns.',
-            )}
-            note={auto ? tr('As wide as nothing stays standing.') : tr('Smaller overlaps more and takes longer. Empty: the spacing set in OpenMower.')}
-            source={
-              others('lane_spacing_mode') ||
-              (area && area.own.overlap !== undefined && allSpacingCm !== null
-                ? ownLine('overlap', tr('{cm} cm apart', {cm: Math.round(allSpacingCm * 10) / 10}))
-                : null)
-            }
-          >
-            <div className={local.inline}>
-              <Choice
-                options={[
-                  ['auto', tr('automatic')],
-                  ['fixed', tr('Fixed')],
-                ]}
-                value={value('lane_spacing_mode')}
-                like={like(global('lane_spacing_mode') === 'auto' ? tr('automatic') : tr('Fixed'))}
-                disabled={state.busy}
-                onChange={(v) => void save('lane_spacing_mode', v)}
-              />
-              {!auto &&
-                has('overlap') &&
-                numberField(
-                  'spacing',
-                  area && area.own.overlap === undefined ? '' : spacingCm !== null ? String(Math.round(spacingCm * 10) / 10) : '',
-                  spacingCm !== null ? String(Math.round(spacingCm * 10) / 10) : '',
-                  'cm',
-                  (text) => {
-                    const v = parse(text);
-                    if (v === null) return void save('overlap', undefined);
-                    void save('overlap', Math.min(0.95, Math.max(0, 1 - v / 100 / blade)));
-                  },
-                )}
-            </div>
-          </Row>
-        )}
-        {has('headland_turns') && (
-          <Row
-            label={tr('Clean stripes')}
-            help={tr(
-              'In the field of lanes the mower only drives straight along the lanes, it turns and drives across along the outline passes. The stripes stay clean, it takes about a quarter longer.',
-            )}
+            label={tr('Which planner')}
+            help={tr(FIELDS.planner.help)}
             note={
-              effective('headland_turns')
-                ? tr('Turns only along the edge, about a quarter longer. With few outline passes the edge is too narrow for loops and it turns on the spot there, more passes mean less of that.')
-                : tr('Turns at the end of every lane.')
+              slic3r
+                ? tr("OpenMower's slic3r planner, as without MowBite: OpenMower's outline passes, lane spacing and mow angles, no collision check.")
+                : tr('The MowBite Planner, with the settings below.')
             }
-            source={others('headland_turns')}
-          >
-            {toggle('headland_turns')}
-          </Row>
-        )}
-        {/* only with clean stripes and the mower's sizes, the planner leaves it out otherwise */}
-        {has('headland_corners') && effective('headland_turns') === true && sized && (
-          <Row
-            label={tr('Corners along the edge')}
-            help={tr('How the drives along the outline passes take their corners: in a curve, gentle on the lawn, or sharp with a turn on the spot.')}
-            note={effective('headland_corners') === 'sharp' ? tr('Sharp: it turns on the spot at the corners.') : tr('Rounded: the corners are driven in a curve.')}
-            source={others('headland_corners')}
-          >
-            {choice('headland_corners', {rounded: 'Rounded', sharp: 'Sharp'})}
-          </Row>
-        )}
-        {has('narrow_parts') && (
-          <Row
-            label={tr('Narrow parts')}
-            help={tr(FIELDS.narrow_parts.help)}
-            note={
-              effective('narrow_parts') === 'loops'
-                ? tr('Where lanes have no room to turn, the outline passes go on further in until it is mowed.')
-                : tr('Lanes also where they have hardly room to turn.')
-            }
-            source={others('narrow_parts')}
-          >
-            {choice('narrow_parts', FIELDS.narrow_parts.choices!)}
-          </Row>
-        )}
-      </Section>
-
-      {area ? (
-        direction && <Section title={tr('Direction')}>{direction}</Section>
-      ) : (
-        (has('angle_strategy') || has('angle_increment') || angleForAll.length > 0) && (
-          <Section title={tr('Direction')}>
-            {has('angle_strategy') && (
-              <Row
-                label={tr('Automatic direction')}
-                help={tr(FIELDS.angle_strategy.help)}
-                note={`${tr('For areas without a mow angle of their own:')} ${tr(STRATEGY_NOTES[all.angle_strategy.stored ? String(global('angle_strategy')) : 'openmower'] ?? '')}`}
-                source={areaList(tr('Own direction:'), areasWithDirection(map, all))}
-              >
-                <Choice
-                  options={[
-                    ['openmower', tr('OpenMower')],
-                    ...STRATEGIES.filter((c) => all.angle_strategy.choices?.includes(c)).map((c): [string, string] => [c, tr(FIELDS.angle_strategy.choices![c])]),
-                  ]}
-                  value={all.angle_strategy.stored ? global('angle_strategy') : 'openmower'}
-                  disabled={state.busy}
-                  onChange={(v) => void save('angle_strategy', v === 'openmower' ? undefined : v)}
-                />
-              </Row>
-            )}
-            {has('angle_increment') && (
-              <Row
-                label={tr('Turn further')}
-                help={tr(
-                  "So the wheels don't wear tracks into the lawn: after finished mowing runs the lanes run a little turned each time. Within an area's angle range they swing back and forth between its ends, without one they go round all 180°.",
-                )}
-                note={
-                  !step
-                    ? tr('Off: the lanes run the same way every time.')
-                    : steps > 0
-                      ? tr('So far {steps} times, {deg}° in all.', {steps, deg: degrees(steps * step)})
-                      : tr('Not turned yet.')
-                }
-                source={others('angle_increment')}
-              >
-                <div className={local.inline}>
-                  {numberField('turn', String(degrees(step)), '0', '°', (text) => {
-                    const d = parse(text);
-                    void save('angle_increment', d === null ? 0 : Math.min(180, Math.max(0, d)) * DEG);
-                  })}
-                  {has('angle_increment_every') && (
-                    <>
-                      <span className={local.word}>{tr('each time after')}</span>
-                      {numberField('every', String(every), '1', every === 1 ? tr('mowing run') : tr('mowing runs'), (text) => {
-                        const n = parse(text);
-                        void save('angle_increment_every', n === null ? undefined : Math.max(1, Math.round(n)));
-                      })}
-                    </>
-                  )}
-                  {steps + mows > 0 && (
-                    <button disabled={state.busy} onClick={() => void resetAngle()}>
-                      {tr('back to 0°')}
-                    </button>
-                  )}
-                </div>
-                {!!omIncrement && (
-                  <span className={local.error}>
-                    {tr('OpenMower turns the angle further as well (mow_angle_increment {deg}°), the two add up. Set it to 0 in mower_params.yaml.', {
-                      deg: omIncrement,
-                    })}
-                  </span>
-                )}
-              </Row>
-            )}
-            {angleForAll.length > 0 && (
-              <div className={local.row}>
-                <p className={local.error}>
-                  {tr('Still stored for all areas: {what}. It changes the direction of every area, this menu no longer offers it (each area has its own angle and range).', {
-                    what: angleForAll.map((k) => `${tr(FIELDS[k]?.label ?? k)} ${shown(k, all[k].value, all[k])}`).join(', '),
-                  })}
-                </p>
-                <div className={local.inline}>
-                  <button disabled={state.busy} onClick={() => void store(Object.fromEntries(angleForAll.map((k) => [k, null])))}>
-                    {tr('Remove')}
-                  </button>
-                </div>
-              </div>
-            )}
-          </Section>
-        )
-      )}
-
-      <Section
-        title={tr('Edge')}
-        note={collision ? tr('The lines of the map are where the middle of the mower drove, the real edges are half its width further out.') : null}
-      >
-        {has('edges') && !collision && (
-          <Row
-            label={tr('Lines of the map')}
-            help={tr('What the lines of your map stand for. Recorded by driving the mower around: "driven along the edge". Drawn on the screen right along a wall or a bed: "the wall itself".')}
-            note={
-              effective('edges') === 'hard'
-                ? strip !== undefined && strip > 0.005
-                  ? tr('Nothing of the mower goes past them, about {cm} cm stay standing along them.', {cm: Math.round(strip * 100)})
-                  : tr('Nothing of the mower goes past them.')
-                : tr('The middle of the mower drove them, the blade mows up to them.')
-            }
-            source={others('edges')}
           >
             <Choice
               options={[
-                ['hard', tr('The wall itself')],
-                ['recorded', tr('Driven along the edge')],
+                ['mowbite', tr('MowBite')],
+                ['slic3r', tr('slic3r (OpenMower)')],
               ]}
-              value={value('edges')}
-              like={like(global('edges') === 'hard' ? tr('The wall itself') : tr('Driven along the edge'))}
+              value={slic3r ? 'slic3r' : 'mowbite'}
               disabled={state.busy}
-              onChange={(v) => void save('edges', v)}
+              onChange={(v) => void save('planner', v === 'slic3r' ? 'slic3r' : undefined)}
             />
           </Row>
-        )}
-        {has('perimeter_passes') && (
-          <Row
-            label={tr('Outline passes')}
-            help={tr('How many rounds the mower drives along the edge first, before it mows the inside. They leave it room to turn at the ends of the lanes. Automatic: as many as the turns need.')}
-            note={
-              passesAuto
-                ? area?.planned !== undefined
-                  ? tr('As many as the turns need room for, here {n}.', {n: area.planned})
-                  : tr('As many as the turns need room for.')
-                : autoPasses !== undefined
-                  ? tr('Always this many.')
-                  : null
-            }
-            source={area ? omLine('perimeter_passes', 'outline_count') : others('perimeter_passes')}
-          >
-            <div className={local.inline}>
-              {autoPasses !== undefined && (
-                <button
-                  className={passesAuto ? local.on : undefined}
-                  disabled={state.busy}
-                  onClick={() => void save('perimeter_passes', passesAuto ? undefined : autoPasses)}
-                >
-                  {tr('automatic')}
-                </button>
-              )}
-              {!passesAuto &&
-                numberField(
-                  'passes',
-                  area && area.own.perimeter_passes === undefined ? '' : typeof passes === 'number' ? String(passes) : '',
-                  typeof passesShown === 'number' ? String(passesShown) : '',
-                  tr('rounds'),
-                  (text) => {
-                    const n = parse(text);
-                    void save('perimeter_passes', n === null ? undefined : Math.max(0, Math.round(n)));
-                  },
-                )}
-            </div>
-          </Row>
-        )}
-        {has('lane_overlap_passes') && effective('fill_pattern') !== 'concentric' && (
-          <Row
-            label={tr('Overlapping passes')}
-            help={tr(
-              'How many outline passes the lanes reach into: they start that many passes further out, so nothing stays standing between the passes and the lanes. Not with rings.',
-            )}
-            note={
-              reach === 0
-                ? tr('The lanes start after the last outline pass.')
-                : reach === 1
-                  ? tr('The lanes reach 1 pass further out.')
-                  : tr('The lanes reach {n} passes further out.', {n: reach})
-            }
-            source={area ? omLine('lane_overlap_passes', 'outline_overlap_count') : others('lane_overlap_passes')}
-          >
-            {numberField(
-              'overlapPasses',
-              typeof overlapOwn === 'number' ? String(overlapOwn) : '',
-              typeof overlapElse === 'number' ? String(overlapElse) : '0',
-              tr('rounds'),
-              (text) => {
-                const n = parse(text);
-                void save('lane_overlap_passes', n === null ? undefined : Math.max(0, Math.round(n)));
-              },
-            )}
-          </Row>
-        )}
-        {has('perimeter_order') && (
-          <Row
-            label={tr('Outline passes first or last')}
-            help={tr(FIELDS.perimeter_order.help)}
-            note={
-              effective('perimeter_order') === 'last'
-                ? tr('Last: they mow over the marks the turns leave at the edge.')
-                : tr('First: the lanes come after them.')
-            }
-            source={others('perimeter_order')}
-          >
-            {choice('perimeter_order', FIELDS.perimeter_order.choices!)}
-          </Row>
-        )}
-        {has('edge_margin') && (
-          <Row
-            label={tr('Distance to the edge')}
-            help={tr('How far the mower keeps its whole body off the real edge, everywhere. More is safer along walls and beds, less mows closer.')}
-            note={tr('The body keeps this far off the real edge.')}
-            source={others('edge_margin') || ownLine('edge_margin')}
-          >
-            {cmField('edge_margin')}
-          </Row>
-        )}
-      </Section>
-
-      {(has('obstacle_margin') || has('bend_max_gap') || (!area && has('nested_areas'))) && (
-        <Section title={tr('Obstacles')}>
-          {has('obstacle_margin') && (
-            <Row
-              label={tr('Distance to obstacles')}
-              help={tr('How far the mower keeps its body off obstacles, areas not mowed and inactive ones. An obstacle can have its own distance, in the editor under the obstacle, that one counts there.')}
-              note={margins.length ? null : tr('Each obstacle can have its own, in the editor.')}
-              source={
-                <>
-                  {others('obstacle_margin') || ownLine('obstacle_margin')}
-                  {areaList(area ? tr('These obstacles here keep their own distance instead:') : tr('These keep their own distance instead:'), margins)}
-                </>
-              }
-            >
-              {cmField('obstacle_margin')}
-            </Row>
-          )}
-          {has('bend_max_gap') && (
-            <Row
-              label={tr('Lanes around obstacles')}
-              help={tr(FIELDS.bend_max_gap.help)}
-              note={
-                gap > 0
-                  ? tr('A lane goes on around an obstacle up to {m} m long, the area isn’t split there.', {m: meters(gap)})
-                  : tr('Off: an obstacle splits the lanes, the parts are mowed one after another.')
-              }
-              source={others('bend_max_gap') || ownLine('bend_max_gap')}
-            >
-              {mField('bend_max_gap', 20)}
-            </Row>
-          )}
-          {!area && has('nested_areas') && (
-            <Row
-              label={tr('Areas inside areas')}
-              help={tr(FIELDS.nested_areas.help)}
-              note={
-                global('nested_areas')
-                  ? tr('A mowing area lying in another is mowed round and planned on its own.')
-                  : tr('Off: the bigger area mows across one lying in it.')
-              }
-            >
-              {toggle('nested_areas')}
-            </Row>
-          )}
         </Section>
       )}
 
-      {(has('turn_on_spot') || has('min_turn_radius') || has('body_fit') || has('spin_margin') || (has('allow_reverse') && planner.can_back_up === true)) && (
-        <Section title={tr('Turns')}>
-          {has('turn_on_spot') && (
+      {plan}
+
+      {/* with OpenMower's slic3r planner the area's angle and OpenMower's own values count, they come first */}
+      {slic3r && area && direction && <Section title={tr('Direction')}>{direction}</Section>}
+      {slic3r && area && openmower && (
+        <Section title={tr('OpenMower')} note={tr("Empty: OpenMower's value for all areas (mower_params.yaml).")}>
+          {openmower}
+        </Section>
+      )}
+      {slic3r && <p className={local.note}>{tr('Only with the MowBite Planner:')}</p>}
+
+      <div className={slic3r ? local.off : local.sections} inert={slic3r}>
+        <Section title={tr('Pattern')}>
+          {has('fill_pattern') && (
             <Row
-              label={tr('Turning')}
-              help={tr(
-                'Where a plain curve doesn’t fit (at the end of a lane, on the way into one), the mower drives a loop, gentle on the lawn, or turns on the spot, about 14 % quicker but the wheels may scuff the lawn. Curves that fit stay curves.',
-              )}
-              note={spot ? tr('On the spot: quicker, harder on the lawn.') : tr('In a loop: gentle on the lawn.')}
-              source={others('turn_on_spot')}
+              label={tr('Pattern')}
+              help={tr('How the mower covers the inside of the area, after the outline passes.')}
+              note={PATTERN_NOTES[String(effective('fill_pattern'))] ? tr(PATTERN_NOTES[String(effective('fill_pattern'))]) : null}
+              source={others('fill_pattern')}
             >
-              {either('turn_on_spot', tr('In a loop'), tr('On the spot'))}
+              <Choice
+                options={PATTERNS.filter((p) => all.fill_pattern.choices?.includes(p)).map((p) => [p, tr(PATTERN_LABELS[p])])}
+                value={value('fill_pattern')}
+                like={like(tr(PATTERN_LABELS[String(global('fill_pattern'))] ?? String(global('fill_pattern'))))}
+                disabled={state.busy}
+                onChange={(v) => void save('fill_pattern', v)}
+              />
             </Row>
           )}
-          {/* only with loops, turning on the spot leaves loops out anyway */}
-          {!area && has('smooth_spins') && !spot && (
+          {/* the angle of the second lanes, for all areas */}
+          {!area && has('crosshatch_angle') && effective('fill_pattern') === 'crosshatch' && (
+            <Row label={tr('Crosshatch angle')} help={tr(FIELDS.crosshatch_angle.help)} note={tr('The second lanes run this far turned to the first.')}>
+              {numberField('crosshatch', degrees((global('crosshatch_angle') as number) ?? 0).toString(), '90', '°', (text) => {
+                const d = parse(text);
+                void save('crosshatch_angle', d === null ? undefined : Math.min(90, Math.max(10, d)) * DEG);
+              })}
+            </Row>
+          )}
+          {has('lane_spacing_mode') && (
             <Row
-              label={tr('Loops on the way too')}
-              help={tr(FIELDS.smooth_spins.help)}
-              note={
-                global('smooth_spins') !== false
-                  ? tr('Also elsewhere a small loop where it would turn on the spot.')
-                  : tr('Off: loops only at the ends of the lanes, elsewhere it turns on the spot.')
+              label={tr('Lane spacing')}
+              help={tr(
+                'How far apart the lanes are. The blade mows a little wider, so neighbouring lanes overlap. Automatic: the widest spacing that still leaves nothing standing, fewer lanes and turns.',
+              )}
+              note={auto ? tr('As wide as nothing stays standing.') : tr('Smaller overlaps more and takes longer. Empty: the spacing set in OpenMower.')}
+              source={
+                others('lane_spacing_mode') ||
+                (area && area.own.overlap !== undefined && allSpacingCm !== null
+                  ? ownLine('overlap', tr('{cm} cm apart', {cm: Math.round(allSpacingCm * 10) / 10}))
+                  : null)
               }
             >
-              {toggle('smooth_spins')}
+              <div className={local.inline}>
+                <Choice
+                  options={[
+                    ['auto', tr('automatic')],
+                    ['fixed', tr('Fixed')],
+                  ]}
+                  value={value('lane_spacing_mode')}
+                  like={like(global('lane_spacing_mode') === 'auto' ? tr('automatic') : tr('Fixed'))}
+                  disabled={state.busy}
+                  onChange={(v) => void save('lane_spacing_mode', v)}
+                />
+                {!auto &&
+                  has('overlap') &&
+                  numberField(
+                    'spacing',
+                    area && area.own.overlap === undefined ? '' : spacingCm !== null ? String(Math.round(spacingCm * 10) / 10) : '',
+                    spacingCm !== null ? String(Math.round(spacingCm * 10) / 10) : '',
+                    'cm',
+                    (text) => {
+                      const v = parse(text);
+                      if (v === null) return void save('overlap', undefined);
+                      void save('overlap', Math.min(0.95, Math.max(0, 1 - v / 100 / blade)));
+                    },
+                  )}
+              </div>
             </Row>
           )}
-          {has('spin_margin') && (
+          {has('headland_turns') && (
             <Row
-              label={tr('Extra distance when turning')}
+              label={tr('Clean stripes')}
               help={tr(
-                'When turning, on the spot and all along the turns between the lanes, the mower keeps its body this much further off the edge and obstacles: it often wanders a little there. Loops along the edge, lanes and drives keep the plain distances.',
+                'In the field of lanes the mower only drives straight along the lanes, it turns and drives across along the outline passes. The stripes stay clean, it takes about a quarter longer.',
               )}
-              note={tr('On top of the distances to the edge and to obstacles.')}
-              source={others('spin_margin') || ownLine('spin_margin')}
+              note={
+                effective('headland_turns')
+                  ? tr('Turns only along the edge, about a quarter longer. With few outline passes the edge is too narrow for loops and it turns on the spot there, more passes mean less of that.')
+                  : tr('Turns at the end of every lane.')
+              }
+              source={others('headland_turns')}
             >
-              {cmField('spin_margin')}
+              {toggle('headland_turns')}
             </Row>
           )}
-          {has('min_turn_radius') && (
+          {/* only with clean stripes and the mower's sizes, the planner leaves it out otherwise */}
+          {has('headland_corners') && effective('headland_turns') === true && sized && (
             <Row
-              label={tr('Tightest curve')}
-              help={tr(
-                "Turns, loops and drives aren't tighter than this. Where no curve this wide fits, a kink in a tight spot is rounded tighter instead of turning on the spot. The tighter a curve, the slower the inner wheel turns, at the tightest it stands still or turns backwards and tears the lawn. At half the distance between the drive wheels the inner wheel just stands still: take a little more.",
+              label={tr('Corners along the edge')}
+              help={tr('How the drives along the outline passes take their corners: in a curve, gentle on the lawn, or sharp with a turn on the spot.')}
+              note={effective('headland_corners') === 'sharp' ? tr('Sharp: it turns on the spot at the corners.') : tr('Rounded: the corners are driven in a curve.')}
+              source={others('headland_corners')}
+            >
+              {choice('headland_corners', {rounded: 'Rounded', sharp: 'Sharp'})}
+            </Row>
+          )}
+          {has('narrow_parts') && (
+            <Row
+              label={tr('Narrow parts')}
+              help={tr(FIELDS.narrow_parts.help)}
+              note={
+                effective('narrow_parts') === 'loops'
+                  ? tr('Where lanes have no room to turn, the outline passes go on further in until it is mowed.')
+                  : tr('Lanes also where they have hardly room to turn.')
+              }
+              source={others('narrow_parts')}
+            >
+              {choice('narrow_parts', FIELDS.narrow_parts.choices!)}
+            </Row>
+          )}
+        </Section>
+
+        {area ? (
+          !slic3r && direction && <Section title={tr('Direction')}>{direction}</Section>
+        ) : (
+          (has('angle_strategy') || has('angle_increment') || angleForAll.length > 0) && (
+            <Section title={tr('Direction')}>
+              {has('angle_strategy') && (
+                <Row
+                  label={tr('Automatic direction')}
+                  help={tr(FIELDS.angle_strategy.help)}
+                  note={`${tr('For areas without a mow angle of their own:')} ${tr(STRATEGY_NOTES[all.angle_strategy.stored ? String(global('angle_strategy')) : 'openmower'] ?? '')}`}
+                  source={areaList(tr('Own direction:'), areasWithDirection(map, all))}
+                >
+                  <Choice
+                    options={[
+                      ['openmower', tr('OpenMower')],
+                      ...STRATEGIES.filter((c) => all.angle_strategy.choices?.includes(c)).map((c): [string, string] => [c, tr(FIELDS.angle_strategy.choices![c])]),
+                    ]}
+                    value={all.angle_strategy.stored ? global('angle_strategy') : 'openmower'}
+                    disabled={state.busy}
+                    onChange={(v) => void save('angle_strategy', v === 'openmower' ? undefined : v)}
+                  />
+                </Row>
               )}
-              note={tr('Larger is gentler on the lawn, needs more room at the edge.')}
-              source={others('min_turn_radius') || ownLine('min_turn_radius')}
+              {has('angle_increment') && (
+                <Row
+                  label={tr('Turn further')}
+                  help={tr(
+                    "So the wheels don't wear tracks into the lawn: after finished mowing runs the lanes run a little turned each time. Within an area's angle range they swing back and forth between its ends, without one they go round all 180°.",
+                  )}
+                  note={
+                    !step
+                      ? tr('Off: the lanes run the same way every time.')
+                      : steps > 0
+                        ? tr('So far {steps} times, {deg}° in all.', {steps, deg: degrees(steps * step)})
+                        : tr('Not turned yet.')
+                  }
+                  source={others('angle_increment')}
+                >
+                  <div className={local.inline}>
+                    {numberField('turn', String(degrees(step)), '0', '°', (text) => {
+                      const d = parse(text);
+                      void save('angle_increment', d === null ? 0 : Math.min(180, Math.max(0, d)) * DEG);
+                    })}
+                    {has('angle_increment_every') && (
+                      <>
+                        <span className={local.word}>{tr('each time after')}</span>
+                        {numberField('every', String(every), '1', every === 1 ? tr('mowing run') : tr('mowing runs'), (text) => {
+                          const n = parse(text);
+                          void save('angle_increment_every', n === null ? undefined : Math.max(1, Math.round(n)));
+                        })}
+                      </>
+                    )}
+                    {steps + mows > 0 && (
+                      <button disabled={state.busy} onClick={() => void resetAngle()}>
+                        {tr('back to 0°')}
+                      </button>
+                    )}
+                  </div>
+                  {!!omIncrement && (
+                    <span className={local.error}>
+                      {tr('OpenMower turns the angle further as well (mow_angle_increment {deg}°), the two add up. Set it to 0 in mower_params.yaml.', {
+                        deg: omIncrement,
+                      })}
+                    </span>
+                  )}
+                </Row>
+              )}
+              {angleForAll.length > 0 && (
+                <div className={local.row}>
+                  <p className={local.error}>
+                    {tr('Still stored for all areas: {what}. It changes the direction of every area, this menu no longer offers it (each area has its own angle and range).', {
+                      what: angleForAll.map((k) => `${tr(FIELDS[k]?.label ?? k)} ${shown(k, all[k].value, all[k])}`).join(', '),
+                    })}
+                  </p>
+                  <div className={local.inline}>
+                    <button disabled={state.busy} onClick={() => void store(Object.fromEntries(angleForAll.map((k) => [k, null])))}>
+                      {tr('Remove')}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </Section>
+          )
+        )}
+
+        <Section
+          title={tr('Edge')}
+          note={collision ? tr('The lines of the map are where the middle of the mower drove, the real edges are half its width further out.') : null}
+        >
+          {has('edges') && !collision && (
+            <Row
+              label={tr('Lines of the map')}
+              help={tr('What the lines of your map stand for. Recorded by driving the mower around: "driven along the edge". Drawn on the screen right along a wall or a bed: "the wall itself".')}
+              note={
+                effective('edges') === 'hard'
+                  ? strip !== undefined && strip > 0.005
+                    ? tr('Nothing of the mower goes past them, about {cm} cm stay standing along them.', {cm: Math.round(strip * 100)})
+                    : tr('Nothing of the mower goes past them.')
+                  : tr('The middle of the mower drove them, the blade mows up to them.')
+              }
+              source={others('edges')}
+            >
+              <Choice
+                options={[
+                  ['hard', tr('The wall itself')],
+                  ['recorded', tr('Driven along the edge')],
+                ]}
+                value={value('edges')}
+                like={like(global('edges') === 'hard' ? tr('The wall itself') : tr('Driven along the edge'))}
+                disabled={state.busy}
+                onChange={(v) => void save('edges', v)}
+              />
+            </Row>
+          )}
+          {has('perimeter_passes') && (
+            <Row
+              label={tr('Outline passes')}
+              help={tr('How many rounds the mower drives along the edge first, before it mows the inside. They leave it room to turn at the ends of the lanes. Automatic: as many as the turns need.')}
+              note={
+                passesAuto
+                  ? area?.planned !== undefined
+                    ? tr('As many as the turns need room for, here {n}.', {n: area.planned})
+                    : tr('As many as the turns need room for.')
+                  : autoPasses !== undefined
+                    ? tr('Always this many.')
+                    : null
+              }
+              source={area ? omLine('perimeter_passes', 'outline_count') : others('perimeter_passes')}
+            >
+              <div className={local.inline}>
+                {autoPasses !== undefined && (
+                  <button
+                    className={passesAuto ? local.on : undefined}
+                    disabled={state.busy}
+                    onClick={() => void save('perimeter_passes', passesAuto ? undefined : autoPasses)}
+                  >
+                    {tr('automatic')}
+                  </button>
+                )}
+                {!passesAuto &&
+                  numberField(
+                    'passes',
+                    area && area.own.perimeter_passes === undefined ? '' : typeof passes === 'number' ? String(passes) : '',
+                    typeof passesShown === 'number' ? String(passesShown) : '',
+                    tr('rounds'),
+                    (text) => {
+                      const n = parse(text);
+                      void save('perimeter_passes', n === null ? undefined : Math.max(0, Math.round(n)));
+                    },
+                  )}
+              </div>
+            </Row>
+          )}
+          {has('lane_overlap_passes') && effective('fill_pattern') !== 'concentric' && (
+            <Row
+              label={tr('Overlapping passes')}
+              help={tr(
+                'How many outline passes the lanes reach into: they start that many passes further out, so nothing stays standing between the passes and the lanes. Not with rings.',
+              )}
+              note={
+                reach === 0
+                  ? tr('The lanes start after the last outline pass.')
+                  : reach === 1
+                    ? tr('The lanes reach 1 pass further out.')
+                    : tr('The lanes reach {n} passes further out.', {n: reach})
+              }
+              source={area ? omLine('lane_overlap_passes', 'outline_overlap_count') : others('lane_overlap_passes')}
             >
               {numberField(
-                'least',
-                area && area.own.min_turn_radius === undefined ? '' : cm(value('min_turn_radius')),
-                cm(global('min_turn_radius')),
-                'cm',
+                'overlapPasses',
+                typeof overlapOwn === 'number' ? String(overlapOwn) : '',
+                typeof overlapElse === 'number' ? String(overlapElse) : '0',
+                tr('rounds'),
                 (text) => {
-                  const v = parse(text);
-                  void save('min_turn_radius', v === null ? undefined : Math.max(0, v / 100));
+                  const n = parse(text);
+                  void save('lane_overlap_passes', n === null ? undefined : Math.max(0, Math.round(n)));
                 },
               )}
             </Row>
           )}
-          {has('allow_reverse') && planner.can_back_up === true && (
+          {has('perimeter_order') && (
             <Row
-              label={tr('Back up where needed')}
-              help={tr('Possible because OpenMower on this mower backs up along the plan. Where no turn fits going forwards (a tight corner), the mower backs up briefly instead of turning on the spot.')}
-              note={effective('allow_reverse') ? tr('A three-point turn in tight corners.') : tr('Turns on the spot in tight corners.')}
-              source={others('allow_reverse')}
+              label={tr('Outline passes first or last')}
+              help={tr(FIELDS.perimeter_order.help)}
+              note={
+                effective('perimeter_order') === 'last'
+                  ? tr('Last: they mow over the marks the turns leave at the edge.')
+                  : tr('First: the lanes come after them.')
+              }
+              source={others('perimeter_order')}
             >
-              {toggle('allow_reverse')}
+              {choice('perimeter_order', FIELDS.perimeter_order.choices!)}
             </Row>
           )}
-          {has('body_fit') && (
+          {has('edge_margin') && (
             <Row
-              label={tr('Collision check')}
-              help={tr(
-                'Every plan is checked against the mower’s body. Where it would stick out past a real edge or into an obstacle (a turn, a loop in a tight spot), the mower drives there another way and leaves a little out where nothing fits. The places show on the map with the plan. Off: the plan as it comes, the distances still count.',
-              )}
-              note={effective('body_fit') === false ? tr('Off: the plan stays as it comes.') : tr('Where the body would stick out, it drives another way.')}
-              source={others('body_fit')}
+              label={tr('Distance to the edge')}
+              help={tr('How far the mower keeps its whole body off the real edge, everywhere. More is safer along walls and beds, less mows closer.')}
+              note={tr('The body keeps this far off the real edge.')}
+              source={others('edge_margin') || ownLine('edge_margin')}
             >
-              {toggle('body_fit')}
+              {cmField('edge_margin')}
             </Row>
           )}
         </Section>
-      )}
 
-      {(has('route_order') || (!area && has('transit_edge_distance'))) && (
-        <Section title={tr('Drives between the parts')}>
-          {has('route_order') && (
-            <Row
-              label={tr('Order of the parts')}
-              help={tr(FIELDS.route_order.help)}
-              note={
-                effective('route_order') === 'optimized'
-                  ? tr('The order with the shortest drives between the parts, takes a little longer to plan.')
-                  : tr('The closest part not mowed yet comes next.')
-              }
-              source={others('route_order')}
-            >
-              {choice('route_order', FIELDS.route_order.choices!)}
-            </Row>
-          )}
-          {!area && has('transit_edge_distance') && (
-            <Row
-              label={tr('Drives away from edges')}
-              help={tr(FIELDS.transit_edge_distance.help)}
-              note={
-                (num('transit_edge_distance') ?? 0) > 0
-                  ? tr('Drives keep this far from walls and beds where that costs little more.')
-                  : tr('Off: drives take the shortest way.')
-              }
-            >
-              {mField('transit_edge_distance', 5)}
-            </Row>
-          )}
-        </Section>
-      )}
+        {(has('obstacle_margin') || has('bend_max_gap') || (!area && has('nested_areas'))) && (
+          <Section title={tr('Obstacles')}>
+            {has('obstacle_margin') && (
+              <Row
+                label={tr('Distance to obstacles')}
+                help={tr('How far the mower keeps its body off obstacles, areas not mowed and inactive ones. An obstacle can have its own distance, in the editor under the obstacle, that one counts there.')}
+                note={margins.length ? null : tr('Each obstacle can have its own, in the editor.')}
+                source={
+                  <>
+                    {others('obstacle_margin') || ownLine('obstacle_margin')}
+                    {areaList(area ? tr('These obstacles here keep their own distance instead:') : tr('These keep their own distance instead:'), margins)}
+                  </>
+                }
+              >
+                {cmField('obstacle_margin')}
+              </Row>
+            )}
+            {has('bend_max_gap') && (
+              <Row
+                label={tr('Lanes around obstacles')}
+                help={tr(FIELDS.bend_max_gap.help)}
+                note={
+                  gap > 0
+                    ? tr('A lane goes on around an obstacle up to {m} m long, the area isn’t split there.', {m: meters(gap)})
+                    : tr('Off: an obstacle splits the lanes, the parts are mowed one after another.')
+                }
+                source={others('bend_max_gap') || ownLine('bend_max_gap')}
+              >
+                {mField('bend_max_gap', 20)}
+              </Row>
+            )}
+            {!area && has('nested_areas') && (
+              <Row
+                label={tr('Areas inside areas')}
+                help={tr(FIELDS.nested_areas.help)}
+                note={
+                  global('nested_areas')
+                    ? tr('A mowing area lying in another is mowed round and planned on its own.')
+                    : tr('Off: the bigger area mows across one lying in it.')
+                }
+              >
+                {toggle('nested_areas')}
+              </Row>
+            )}
+          </Section>
+        )}
+
+        {(has('turn_on_spot') || has('min_turn_radius') || has('body_fit') || has('spin_margin') || (has('allow_reverse') && planner.can_back_up === true)) && (
+          <Section title={tr('Turns')}>
+            {has('turn_on_spot') && (
+              <Row
+                label={tr('Turning')}
+                help={tr(
+                  'Where a plain curve doesn’t fit (at the end of a lane, on the way into one), the mower drives a loop, gentle on the lawn, or turns on the spot, about 14 % quicker but the wheels may scuff the lawn. Curves that fit stay curves.',
+                )}
+                note={spot ? tr('On the spot: quicker, harder on the lawn.') : tr('In a loop: gentle on the lawn.')}
+                source={others('turn_on_spot')}
+              >
+                {either('turn_on_spot', tr('In a loop'), tr('On the spot'))}
+              </Row>
+            )}
+            {/* only with loops, turning on the spot leaves loops out anyway */}
+            {!area && has('smooth_spins') && !spot && (
+              <Row
+                label={tr('Loops on the way too')}
+                help={tr(FIELDS.smooth_spins.help)}
+                note={
+                  global('smooth_spins') !== false
+                    ? tr('Also elsewhere a small loop where it would turn on the spot.')
+                    : tr('Off: loops only at the ends of the lanes, elsewhere it turns on the spot.')
+                }
+              >
+                {toggle('smooth_spins')}
+              </Row>
+            )}
+            {has('spin_margin') && (
+              <Row
+                label={tr('Extra distance when turning')}
+                help={tr(
+                  'When turning, on the spot and all along the turns between the lanes, the mower keeps its body this much further off the edge and obstacles: it often wanders a little there. Loops along the edge, lanes and drives keep the plain distances.',
+                )}
+                note={tr('On top of the distances to the edge and to obstacles.')}
+                source={others('spin_margin') || ownLine('spin_margin')}
+              >
+                {cmField('spin_margin')}
+              </Row>
+            )}
+            {has('min_turn_radius') && (
+              <Row
+                label={tr('Tightest curve')}
+                help={tr(
+                  "Turns, loops and drives aren't tighter than this. Where no curve this wide fits, a kink in a tight spot is rounded tighter instead of turning on the spot. The tighter a curve, the slower the inner wheel turns, at the tightest it stands still or turns backwards and tears the lawn. At half the distance between the drive wheels the inner wheel just stands still: take a little more.",
+                )}
+                note={tr('Larger is gentler on the lawn, needs more room at the edge.')}
+                source={others('min_turn_radius') || ownLine('min_turn_radius')}
+              >
+                {numberField(
+                  'least',
+                  area && area.own.min_turn_radius === undefined ? '' : cm(value('min_turn_radius')),
+                  cm(global('min_turn_radius')),
+                  'cm',
+                  (text) => {
+                    const v = parse(text);
+                    void save('min_turn_radius', v === null ? undefined : Math.max(0, v / 100));
+                  },
+                )}
+              </Row>
+            )}
+            {has('allow_reverse') && planner.can_back_up === true && (
+              <Row
+                label={tr('Back up where needed')}
+                help={tr('Possible because OpenMower on this mower backs up along the plan. Where no turn fits going forwards (a tight corner), the mower backs up briefly instead of turning on the spot.')}
+                note={effective('allow_reverse') ? tr('A three-point turn in tight corners.') : tr('Turns on the spot in tight corners.')}
+                source={others('allow_reverse')}
+              >
+                {toggle('allow_reverse')}
+              </Row>
+            )}
+            {has('body_fit') && (
+              <Row
+                label={tr('Collision check')}
+                help={tr(
+                  'Every plan is checked against the mower’s body. Where it would stick out past a real edge or into an obstacle (a turn, a loop in a tight spot), the mower drives there another way and leaves a little out where nothing fits. The places show on the map with the plan. Off: the plan as it comes, the distances still count.',
+                )}
+                note={effective('body_fit') === false ? tr('Off: the plan stays as it comes.') : tr('Where the body would stick out, it drives another way.')}
+                source={others('body_fit')}
+              >
+                {toggle('body_fit')}
+              </Row>
+            )}
+          </Section>
+        )}
+
+        {(has('route_order') || (!area && has('transit_edge_distance'))) && (
+          <Section title={tr('Drives between the parts')}>
+            {has('route_order') && (
+              <Row
+                label={tr('Order of the parts')}
+                help={tr(FIELDS.route_order.help)}
+                note={
+                  effective('route_order') === 'optimized'
+                    ? tr('The order with the shortest drives between the parts, takes a little longer to plan.')
+                    : tr('The closest part not mowed yet comes next.')
+                }
+                source={others('route_order')}
+              >
+                {choice('route_order', FIELDS.route_order.choices!)}
+              </Row>
+            )}
+            {!area && has('transit_edge_distance') && (
+              <Row
+                label={tr('Drives away from edges')}
+                help={tr(FIELDS.transit_edge_distance.help)}
+                note={
+                  (num('transit_edge_distance') ?? 0) > 0
+                    ? tr('Drives keep this far from walls and beds where that costs little more.')
+                    : tr('Off: drives take the shortest way.')
+                }
+              >
+                {mField('transit_edge_distance', 5)}
+              </Row>
+            )}
+          </Section>
+        )}
+
+      </div>
 
       {state.error && <span className={local.error}>{state.error}</span>}
     </div>

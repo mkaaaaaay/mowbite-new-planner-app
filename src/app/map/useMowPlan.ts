@@ -6,7 +6,7 @@ import {angleChangedSince} from '@/lib/backups';
 import {measuredStripeAngle, stripeAngleDiff} from '@/lib/mowDirection';
 import {mowAroundHoles, nestedAreas} from '@/lib/mowAround';
 import {linkStripes, mowPlan, type MowPlan, type PlanChosen} from '@/lib/mowPlan';
-import {usePlannerSettings} from '@/lib/mowerBody';
+import {slic3rPlans, usePlannerSettings} from '@/lib/mowerBody';
 import type {PlannerEstimateInput} from '@/lib/plannerEstimate';
 import {usePlannerEstimate} from '@/lib/usePlannerEstimate';
 import {angleInRange, autoMowAngle} from '@/lib/mowStripes';
@@ -66,8 +66,10 @@ export function useMowPlan({
   draggingPoint: boolean;
 }) {
   const toolWidth = numParam(params, PARAM.toolWidth);
-  // the MowBite Planner's settings, when the mower has it: the estimate then follows its rules
-  const planner = usePlannerSettings();
+  // the MowBite Planner's settings, when the mower has it: the estimate then follows its rules. With OpenMower's slic3r
+  // planner switched on in it they don't count, the plan is OpenMower's then
+  const plannerSettings = usePlannerSettings();
+  const planner = slic3rPlans(plannerSettings) ? null : plannerSettings;
   // a planner setting for the area: its own (planner property), else the one for all areas
   const plannerValue = (area: MapArea | null, key: string): unknown => {
     const own = area?.properties.planner ?? {};

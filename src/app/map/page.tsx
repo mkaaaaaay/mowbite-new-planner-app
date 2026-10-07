@@ -22,7 +22,7 @@ import {deleteBackup, listBackups, loadBackup, saveBackup, type BackupInfo} from
 import AreaCard from './AreaCard';
 import {type UpdateArea, NEW_AREA_SETTINGS} from './editing';
 import EditorToolbar from './EditorToolbar';
-import MowSettings, {AngleOnMap, AreaDirection, AreaPlanInfo} from './MowSettings';
+import MowSettings, {AngleOnMap, AreaDirection, AreaPlanInfo, OpenMowerArea} from './MowSettings';
 import OrderBox from './OrderBox';
 import {DrawPanel, MergePanel, RestorePanel, SimplifyPanel, SplitPanel} from './Panels';
 import {PARAM} from '@/lib/openmower';
@@ -38,7 +38,7 @@ import Problems from './Problems';
 import {BodyCheck, PlanChecks} from './BodyCheck';
 import {AreaPlanner} from './AreaPlanner';
 import {Fold} from './Fold';
-import {useMowerBody, usePlannerSettings, type BodySpot} from '@/lib/mowerBody';
+import {slic3rPlans, useMowerBody, usePlannerSettings, type BodySpot} from '@/lib/mowerBody';
 import {MowerBodySettings} from '@/components/MowerBodySettings';
 import {PlannerSettings} from '@/components/PlannerSettings';
 import {PlannerSimple} from '@/components/PlannerSimple';
@@ -141,7 +141,10 @@ function MapEditor() {
   // planner that keeps the mower's body off the edges and obstacles: where it doesn't get through between them
   const approachDistance = numParam(params, PARAM.dockingApproachDistance);
   const plannerSettings = usePlannerSettings();
+  // OpenMower's slic3r planner switched on in the MowBite Planner: no distances kept, no collision check
+  const slic3r = slic3rPlans(plannerSettings);
   const margins = useMemo(() => {
+    if (slic3rPlans(plannerSettings)) return null;
     const value = (k: string) => plannerSettings?.settings[k]?.value;
     const sized = ['robot_width', 'robot_front', 'robot_rear'].every((k) => {
       const v = value(k);
@@ -162,7 +165,7 @@ function MapEditor() {
   // the mower's body as the planner knows it, and where it would stick out in the selected area's plan
   const body = useMowerBody();
   // a planner that checks the mower's body in every plan (it has body_fit): what it found shows with the plan
-  const collisionMode = !!plannerSettings?.settings.body_fit;
+  const collisionMode = !!plannerSettings?.settings.body_fit && !slic3r;
   const [bodySpots, setBodySpots] = useState<BodySpot[] | null>(null);
   const {toolWidth, angleOffset, offsetIsAbsolute, angleIncrement, shownArea, autoAngle, touchAngle, mismatch, realPlan, plan, stripes, planLength, planRequest} =
     useMowPlan({params, liveMap, shownMap, selectedAreaId, pastJobs, areaProps, showStripes, previewCorrection, draggingPoint});
@@ -730,8 +733,11 @@ function MapEditor() {
                       <PlannerSimple toolWidth={toolWidth} omIncrement={angleIncrement} map={map} onSelectArea={selectArea} />
                       <details className={simpleStyles.expert}>
                         <summary>{tr('More settings (expert)')}</summary>
-                        <div className={styles.foldCards}>
-                          <PlannerSettings styles={settingsStyles} />
+                        {slic3r && <p className={simpleStyles.note}>{tr('Only with the MowBite Planner:')}</p>}
+                        <div className={slic3r ? simpleStyles.off : undefined} inert={slic3r}>
+                          <div className={styles.foldCards}>
+                            <PlannerSettings styles={settingsStyles} />
+                          </div>
                         </div>
                       </details>
                     </Fold>
@@ -816,6 +822,7 @@ function MapEditor() {
                     onSelectArea={selectArea}
                     plan={<AreaPlanInfo {...mowProps} />}
                     direction={<AreaDirection {...mowProps} update={updateDirection} />}
+                    openmower={<OpenMowerArea {...mowProps} inMenu />}
                     area={{
                       own: selectedArea.properties.planner ?? {},
                       openmower: {
@@ -839,10 +846,14 @@ function MapEditor() {
                   />
                   <details className={simpleStyles.expert}>
                     <summary>{tr('More settings (expert)')}</summary>
-                    <AreaPlanner properties={selectedArea.properties} update={updateProperties} remember={remember} />
+                    {slic3r && <p className={simpleStyles.note}>{tr('Only with the MowBite Planner:')}</p>}
+                    <div className={slic3r ? simpleStyles.off : undefined} inert={slic3r}>
+                      <AreaPlanner properties={selectedArea.properties} update={updateProperties} remember={remember} />
+                    </div>
                   </details>
                   {body &&
                     realPlan &&
+                    !slic3r &&
                     (collisionMode ? (
                       <PlanChecks checks={realPlan.checks} on={(selectedArea.properties.planner?.body_fit ?? plannerSettings?.settings.body_fit?.value) !== false} />
                     ) : (
