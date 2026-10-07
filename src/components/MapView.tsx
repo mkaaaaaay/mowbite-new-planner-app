@@ -86,6 +86,8 @@ interface MapViewProps {
   turnPlaces?: Point[];
   // where the path jumps, a cross each
   jumpPlaces?: Point[];
+  // after a run: where the body got into the safety distances, m how far
+  marginPlaces?: {x: number; y: number; m: number}[];
   // start zoomed in around this point instead of showing the whole map
   focus?: Point;
   // zoom and position are kept under this key while the app runs, e.g. across a visit to the settings
@@ -327,6 +329,7 @@ export default function MapView({
   onFitPick,
   turnPlaces,
   jumpPlaces,
+  marginPlaces,
   focus,
   viewKey,
   onClickEmpty,
@@ -1314,6 +1317,18 @@ export default function MapView({
         const r = 6 * k;
         return <path key={'jump' + i} className={styles.jumpPlace} d={`M ${x - r} ${y - r} L ${x + r} ${y + r} M ${x - r} ${y + r} L ${x + r} ${y - r}`} />;
       })}
+      {!hidden.has('margins') &&
+        marginPlaces?.map((p, i) => {
+          const [x, y] = toScreen(p.x, p.y);
+          return (
+            <g key={'margin' + i} className={styles.marginPlace}>
+              <circle cx={x} cy={y} r={2.5 * k} />
+              <text x={x + 4 * k} y={y} dy="0.35em" fontSize={9 * k} strokeWidth={2.5 * k}>
+                {Math.round(p.m * 100)} cm
+              </text>
+            </g>
+          );
+        })}
       {body &&
         bodySpots?.map((s, i) => {
           const shape = bodyShape(body, s.x, s.y, s.yaw);

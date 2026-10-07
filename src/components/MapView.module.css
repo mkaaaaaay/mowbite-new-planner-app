@@ -608,6 +608,23 @@
 }
 
 /* a place driven another way so the body fits, a dot where a piece is left out */
+/* after a run, where the body got into the safety distances: small, it's a hint */
+.marginPlace {
+  pointer-events: none;
+}
+
+.marginPlace circle {
+  fill: #ef5350;
+  fill-opacity: 0.8;
+}
+
+.marginPlace text {
+  fill: #ff8a80;
+  font-weight: 600;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.6);
+}
+
 .fitPlace,
 .fitSkip {
   pointer-events: none;

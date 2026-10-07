@@ -1029,6 +1029,7 @@ const de: Record<string, string> = {
   "Radius of the turns at the ends of the lanes, and no curve anywhere is tighter: turns, loops and drives. Where none this wide fits, it turns on the spot. The tighter a curve, the slower the inner wheel turns, at the tightest it stands still or turns backwards and tears the lawn. At half the distance between the drive wheels the inner wheel just stands still: take a little more.": "Radius der Wenden an den Bahnenden, und kein Bogen ist enger: Wenden, Schleifen und Fahrten. Wo keiner so weit passt, dreht er auf der Stelle. Je enger ein Bogen, desto langsamer dreht das innere Rad, beim engsten steht es oder dreht rückwärts und reißt den Rasen auf. Bei der halben Spurweite der Antriebsräder steht das innere Rad gerade still: etwas mehr nehmen.",
   "Radius of the turns at the ends of the lanes, and no curve anywhere is tighter. Larger is gentler on the lawn, but needs more room at the edge (more outline passes).": "Radius der Wenden an den Bahnenden, und kein Bogen ist enger. Größer schont den Rasen, braucht aber mehr Platz am Rand (mehr Randrunden).",
   "The kinds of turns the planner may use, the first ones it likes best. Turning on the spot leaves out the bulb turn.": "Welche Wenden der Planer nehmen darf, die ersten am liebsten. Mit Wendeart „Auf der Stelle“ fällt die Birnenwende weg.",
+  "Too close": "Zu nah gekommen",
 };
 
 export default de;

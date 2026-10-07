@@ -6,7 +6,8 @@ import TrackPicker from '@/components/TrackPicker';
 import {saveMap, useMowerMap, type MowerMap, type Point} from '@/hooks/useMowerMap';
 import {useMowerPosition} from '@/hooks/useMowerPosition';
 import {useDocked, useMowerStateValue} from '@/hooks/useMowerState';
-import {clearTrack, trackPoints, useLastRun, useMowerTrack} from '@/hooks/useMowerTrack';
+import {clearTrack, trackPoints, useLastRun, useLastRunJob, useMowerTrack} from '@/hooks/useMowerTrack';
+import {useMarginPlaces} from '@/lib/marginCheck';
 import {usePlanProgress} from '@/hooks/usePlanProgress';
 import {datumFromParams, numParam, useMowerParams} from '@/hooks/useMowerParams';
 import {loadJobTrack, useJobList, useMowHistory, type TrackSegment} from '@/hooks/useMowHistory';
@@ -69,6 +70,7 @@ function MapEditor() {
   const docked = useDocked();
   const track = useMowerTrack();
   const lastRun = useLastRun();
+  const lastRunJob = useLastRunJob();
   const liveMap = useMowerMap();
   const params = useMowerParams();
   // while it mows: how far it got with the area's plan, like on the overview (the state only then, it changes every
@@ -136,6 +138,8 @@ function MapEditor() {
   // while an area is edited only its plan shows, the last run's track and its cut strip went at the old settings; the
   // area being mowed keeps its live trail
   const trackShown = viewJob || (selectedArea && progress?.areaId !== selectedAreaId) ? undefined : track;
+  // the finished run on the map, a picked one or the last: where the body got into the safety distances
+  const marginPlaces = useMarginPlaces(viewJob?.id ?? (trackShown ? lastRunJob : null));
   const baseOutline = selectedArea ? (originals[selectedArea.id] ?? selectedArea.outline) : null;
   const simplified = useMemo(
     () =>
@@ -660,6 +664,7 @@ function MapEditor() {
                 fitPicked={fitPlace ? fitPick!.index : null}
                 onFitPick={(index) => setFitPick(index === null ? null : {plan: realPlan, index})}
                 turnPlaces={realPlan?.checks?.turns}
+                marginPlaces={marginPlaces.length ? marginPlaces : undefined}
                 jumpPlaces={realPlan?.checks ? [...realPlan.checks.jumps, ...realPlan.checks.unchecked] : undefined}
                 focus={spot ?? undefined}
               />
