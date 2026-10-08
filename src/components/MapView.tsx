@@ -208,7 +208,8 @@ function MowerMarker({
   emergency?: boolean;
   blades: boolean;
 }) {
-  const shown = useEasedPose(mower) ?? mower;
+  // (half a pixel of the map, about: k is svg units per pixel of the drawing's width)
+  const shown = useEasedPose(mower, (0.5 * k) / fit.scale) ?? mower;
   // the blade turning the way the mow motor does, drawn only with the outline
   const rpm = useSensorValue('om_mow_motor_rpm', (v) => (outline && body?.blade ? Math.round(parseFloat(v ?? '') || 0) : 0));
   const speed = useComputedSpeed(mower);
