@@ -18,8 +18,8 @@ describe('narrowPassages', () => {
     const [n] = narrowPassages(map(lawn, area('table', 'obstacle', rect(0.08, 4, 1, 1))), margins);
     expect(n).toMatchObject({kind: 'narrow', areaId: 'table', otherId: 'lawn', edge: true});
     expect(n.gap).toBeCloseTo(0.08);
-    // the two distances and room to steer
-    expect(n.need).toBeCloseTo(0.2);
+    // the two distances
+    expect(n.need).toBeCloseTo(0.15);
     expect(n.at.x).toBeCloseTo(0.04);
   });
 
@@ -35,12 +35,12 @@ describe('narrowPassages', () => {
     expect(found).toHaveLength(1);
     expect(found[0]).toMatchObject({areaId: 'a', otherId: 'b', edge: false});
     expect(found[0].gap).toBeCloseTo(0.15);
-    expect(found[0].need).toBeCloseTo(0.25);
+    expect(found[0].need).toBeCloseTo(0.2);
     expect(found[0].at.x).toBeCloseTo(5.075);
   });
 
   it("takes an obstacle's own distance and the area's own settings", () => {
-    const close = area('pole', 'obstacle', rect(0.18, 4, 0.1, 0.1));
+    const close = area('pole', 'obstacle', rect(0.12, 4, 0.1, 0.1));
     expect(narrowPassages(map(lawn, close), margins)).toHaveLength(1);
     expect(narrowPassages(map(lawn, {...close, properties: {...close.properties, margin: 0}}), margins)).toEqual([]);
     const tight = {...lawn, properties: {...lawn.properties, planner: {edge_margin: 0, obstacle_margin: 0}}};

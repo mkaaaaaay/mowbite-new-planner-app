@@ -3,10 +3,10 @@ import {containsPoint, shareInside} from './geometry';
 
 // Where the mower doesn't get through, with a planner that keeps its body off the edges and obstacles (collision
 // mode): between an obstacle and the edge of the mowing area it lies in, or between two obstacles. The lines of the
-// map are where the middle of the mower drove, so between two lines it needs both distances and some room to steer,
-// the grass in between stays standing otherwise. Obstacles are the ones the planner keeps its distance to: the active
-// obstacles and the areas not mowed that are mowed around. Where another mowing area lies next to the edge there's no
-// edge for the body, the planner lets it reach over into that one.
+// map are where the middle of the mower drove, so between two lines it needs both distances, the grass in between
+// stays standing otherwise (closer calls the planner decides, its plan shows them). Obstacles are the ones the planner
+// keeps its distance to: the active obstacles and the areas not mowed that are mowed around. Where another mowing area
+// lies next to the edge there's no edge for the body, the planner lets it reach over into that one.
 
 // a hint, not a warning: the mower plans and drives right, it only leaves the grass there
 export type Narrow = {
@@ -27,9 +27,6 @@ export type Narrow = {
 // the planner's distances for all areas (edge_margin, obstacle_margin) and the mower's width (robot_width), m
 export type Margins = {edge: number; obstacle: number; width: number};
 
-// room to steer through a gap, on top of the distances. A rule of thumb, it depends on how slanted the path comes in:
-// the planner drove through 7.7 cm between the lines with both distances 0, not with 2.7 cm left for the middle
-export const STEER = 0.05;
 // closer than this the lines touch, it's drawn shut on purpose
 const SHUT = 0.01;
 
@@ -144,14 +141,14 @@ export function narrowPassages(map: MowerMap, margins: Margins): Narrow[] {
       return m !== undefined && m >= 0 && m <= 1 ? m : keep;
     };
     const inside = obstacles.filter((o) => o !== lawn && shareInside(o.outline, lawn.outline) > 0);
-    for (const o of inside) found(o, lawn, true, edge + marginOf(o) + STEER);
+    for (const o of inside) found(o, lawn, true, edge + marginOf(o));
     for (let i = 0; i < inside.length; i++) {
       for (let j = i + 1; j < inside.length; j++) {
         const [a, b] = [inside[i], inside[j]];
         const key = [a.id, b.id].sort().join(' ');
         if (done.has(key) || nested(a, b)) continue;
         done.add(key);
-        found(a, b, false, marginOf(a) + marginOf(b) + STEER);
+        found(a, b, false, marginOf(a) + marginOf(b));
       }
     }
   }
