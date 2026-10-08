@@ -4,8 +4,6 @@ A web app for [OpenMower](https://github.com/ClemensElflein/OpenMower) robot mow
 mower itself as a small container (about 5 MB) and talks to OpenMower over MQTT, no cloud involved.
 Works on phones and desktops, and there's an Android app too.
 
-MowBite is a community project and not affiliated with the OpenMower project.
-
 ## What it does
 
 - **Dashboard**: what the mower is doing in plain words, battery, the important sensor values,
