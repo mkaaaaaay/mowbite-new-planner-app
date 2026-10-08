@@ -27,6 +27,7 @@ describe('planner fields', () => {
       'turn_radius',
       'turn_on_spot',
       'headland_turns',
+      'mop_up',
       'headland_corners',
       'edge_margin',
       'obstacle_margin',

@@ -1030,6 +1030,10 @@ const de: Record<string, string> = {
   "Radius of the turns at the ends of the lanes, and no curve anywhere is tighter. Larger is gentler on the lawn, but needs more room at the edge (more outline passes).": "Radius der Wenden an den Bahnenden, und kein Bogen ist enger. Größer schont den Rasen, braucht aber mehr Platz am Rand (mehr Randrunden).",
   "The kinds of turns the planner may use, the first ones it likes best. Turning on the spot leaves out the bulb turn.": "Welche Wenden der Planer nehmen darf, die ersten am liebsten. Mit Wendeart „Auf der Stelle“ fällt die Birnenwende weg.",
   "Too close": "Zu nah gekommen",
+  "Mow the leftovers": "Reste nachmähen",
+  "At the end one more round over the biggest pieces the plan leaves unmowed, a short pass over each. Only with the mower sizes.": "Zum Schluss noch eine Runde über die größten Stücke, die der Plan ungemäht lässt, mit einer kurzen Bahn über jedes. Nur mit den Mäher-Maßen.",
+  "At the end a short pass over the biggest pieces left unmowed, a little more driving.": "Zum Schluss eine kurze Bahn über die größten ungemähten Reste, etwas mehr Fahrweg.",
+  "The plan ends after its lanes and outline passes.": "Der Plan endet nach seinen Bahnen und Randrunden.",
 };
 
 export default de;

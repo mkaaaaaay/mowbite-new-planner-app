@@ -550,6 +550,21 @@ export function PlannerSimple({
               {choice('narrow_parts', FIELDS.narrow_parts.choices!)}
             </Row>
           )}
+          {/* only with the mower's sizes, the planner leaves it out otherwise */}
+          {has('mop_up') && sized && (
+            <Row
+              label={tr('Mow the leftovers')}
+              help={tr(FIELDS.mop_up.help)}
+              note={
+                effective('mop_up')
+                  ? tr('At the end a short pass over the biggest pieces left unmowed, a little more driving.')
+                  : tr('The plan ends after its lanes and outline passes.')
+              }
+              source={others('mop_up')}
+            >
+              {toggle('mop_up')}
+            </Row>
+          )}
         </Section>
 
         {area ? (

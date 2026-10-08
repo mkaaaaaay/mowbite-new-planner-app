@@ -205,6 +205,12 @@ export const FIELDS: Record<string, Field> = {
     group: 'pattern',
     area: true,
   },
+  mop_up: {
+    label: 'Mow the leftovers',
+    help: 'At the end one more round over the biggest pieces the plan leaves unmowed, a short pass over each. Only with the mower sizes.',
+    group: 'pattern',
+    area: true,
+  },
   headland_corners: {
     label: 'Corners of the drives along the edge',
     help: 'With clean stripes: the drives along the outline passes take their corners in a curve, or sharp with a turn on the spot.',
@@ -321,6 +327,7 @@ export const SIMPLE = [
   'headland_turns',
   'headland_corners',
   'narrow_parts',
+  'mop_up',
   'angle_strategy',
   'angle_increment',
   'angle_increment_every',
