@@ -11,6 +11,7 @@ export const LAYERS = [
   {key: 'stripes', label: 'Mowing direction'},
   {key: 'track', label: 'Track'},
   {key: 'margins', label: 'Too close'},
+  {key: 'checks', label: 'Collision check fixes'},
   {key: 'transit', label: 'Driving without blades'},
   {key: 'mowerIcon', label: 'Mower icon'},
   {key: 'body', label: 'Mower outline'},

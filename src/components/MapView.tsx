@@ -74,6 +74,8 @@ interface MapViewProps {
   orderLabels?: Record<string, number>;
   // spots to point out, e.g. where an error happened (red, pulsing)
   markers?: Point[];
+  // a marker tapped: its index, null to close
+  onMarkerPick?: (index: number) => void;
   // poses where the planner found the mower's body sticking out, drawn as the body there
   bodySpots?: {x: number; y: number; yaw: number}[];
   // the planner's collision mode: where the body may go, the places it drove another way (m: left out there) and
@@ -322,6 +324,7 @@ export default function MapView({
   preview,
   overlay,
   markers,
+  onMarkerPick,
   bodySpots,
   bodySpace,
   fitPlaces,
@@ -594,6 +597,8 @@ export default function MapView({
 
   // the edges where the mower's body reached while the outlines were recorded with its middle
   const edgesOn = !!body && layerOn(hidden, 'edges');
+  // what the collision check found and fixed in the plan shown
+  const checksOn = layerOn(hidden, 'checks');
   const edges = useMemo(() => {
     if (!edgesOn || !body) return null;
     const at = (p: Point) => `${((p.x - minX) * scale + padX).toFixed(1)} ${(HEIGHT - ((p.y - minY) * scale + padY)).toFixed(1)}`;
@@ -1280,18 +1285,28 @@ export default function MapView({
       {renderContent(k)}
       {bodySpace && bodySpace.length > 0 && <path className={styles.bodySpace} d={pathOf(bodySpace, drawn, true)} />}
       {/* small and the same size at any zoom, the plan stays readable under them */}
-      {turnPlaces?.map((p, i) => {
-        const [x, y] = toScreen(p.x, p.y);
-        return <circle key={'turn' + i} className={styles.turnPlace} cx={x} cy={y} r={4 * k} />;
-      })}
-      {body &&
+      {checksOn &&
+        turnPlaces?.map((p, i) => {
+          const [x, y] = toScreen(p.x, p.y);
+          return <circle key={'turn' + i} className={styles.turnPlace} cx={x} cy={y} r={4 * k} />;
+        })}
+      {checksOn &&
+        body &&
         fitPlaces?.[fitPicked ?? -1]?.pose &&
         (() => {
           const pose = fitPlaces[fitPicked!].pose!;
           const shape = bodyShape(body, pose.x, pose.y, pose.yaw);
-          return <polygon className={styles.fitBody} points={shape.corners.map((c) => toScreen(c.x, c.y).join(',')).join(' ')} />;
+          // turning on the spot the body sweeps round the rear axle: how far its farthest point reaches then
+          const reach = Math.max(...shape.corners.map((c) => Math.hypot(c.x - pose.x, c.y - pose.y)));
+          const [cx, cy] = toScreen(pose.x, pose.y);
+          return (
+            <>
+              {pose.spin && <circle className={styles.fitSweep} cx={cx} cy={cy} r={reach * scale} />}
+              <polygon className={styles.fitBody} points={shape.corners.map((c) => toScreen(c.x, c.y).join(',')).join(' ')} />
+            </>
+          );
         })()}
-      {fitPlaces?.map((p, i) => {
+      {checksOn && fitPlaces?.map((p, i) => {
         // where the body would have stuck out, once the planner tells
         const [x, y] = toScreen(p.pose?.x ?? p.x, p.pose?.y ?? p.y);
         const dot = <circle className={[p.m > 0 ? styles.fitSkip : styles.fitPlace, i === fitPicked ? styles.fitPicked : ''].join(' ')} cx={x} cy={y} r={4 * k} />;
@@ -1312,7 +1327,7 @@ export default function MapView({
           </g>
         );
       })}
-      {jumpPlaces?.map((p, i) => {
+      {checksOn && jumpPlaces?.map((p, i) => {
         const [x, y] = toScreen(p.x, p.y);
         const r = 6 * k;
         return <path key={'jump' + i} className={styles.jumpPlace} d={`M ${x - r} ${y - r} L ${x + r} ${y + r} M ${x - r} ${y + r} L ${x + r} ${y - r}`} />;
@@ -1344,7 +1359,20 @@ export default function MapView({
       {markers?.map((m, i) => {
         const [mx, my] = toScreen(m.x, m.y);
         return (
-          <g key={'mk' + i} className={styles.marker}>
+          <g
+            key={'mk' + i}
+            className={[styles.marker, onMarkerPick ? styles.markerPick : ''].join(' ')}
+            // like a dot of the collision check: the map doesn't pan or deselect from it
+            onPointerDown={onMarkerPick ? (e) => e.stopPropagation() : undefined}
+            onClick={
+              onMarkerPick
+                ? (e) => {
+                    e.stopPropagation();
+                    onMarkerPick(i);
+                  }
+                : undefined
+            }
+          >
             <circle cx={mx} cy={my} r={20 * k} className={styles.markerPulse} />
             <circle cx={mx} cy={my} r={6 * k} />
           </g>

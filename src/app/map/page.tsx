@@ -36,7 +36,7 @@ import {useMowPlan} from './useMowPlan';
 import {useMapEdits} from './useMapEdits';
 import {checkMap} from '@/lib/mapCheck';
 import {narrowPassages} from '@/lib/narrowPassages';
-import Problems from './Problems';
+import Problems, {problemText} from './Problems';
 import {BodyCheck, PlanChecks} from './BodyCheck';
 import {AreaPlanner} from './AreaPlanner';
 import {Fold} from './Fold';
@@ -180,7 +180,11 @@ function MapEditor() {
     [shownMap, approachDistance, margins],
   );
   const warnings = problems.filter((p) => p.level === 'warn').length;
-  const problemSpots = problems.flatMap((p) => ('at' in p ? [p.at] : []));
+  const spotted = problems.flatMap((p) => ('at' in p ? [p] : []));
+  const problemSpots = spotted.map((p) => p.at);
+  // a red spot tapped on the map: what it is, in words
+  const [problemPick, setProblemPick] = useState<number | null>(null);
+  const pickedProblem = problemPick !== null && shownMap ? spotted[problemPick] : undefined;
 
   // not while a point is dragged, a new plan redrawn mid-drag makes it stutter
   const [draggingPoint, setDraggingPoint] = useState(false);
@@ -217,7 +221,9 @@ function MapEditor() {
       fitPlace!.m > 0
         ? tr('The planner drives another way there and leaves {m} m of loops and lanes out.', {m: fmt(fitPlace!.m, 1)})
         : tr('The planner drives another way there.');
-    return `${what} ${then}`;
+    // (the map draws the body at one heading, turning its corners sweep round)
+    const sweep = pose.spin ? ` ${tr('The dashed circle is how far its corners reach while it turns.')}` : '';
+    return `${what} ${then}${sweep}`;
   })();
 
   const globalValue = (key: string) => {
@@ -592,6 +598,14 @@ function MapEditor() {
                 </button>
               </div>
             )}
+            {pickedProblem && shownMap && (
+              <div className={styles.previewBar}>
+                <span>{problemText(pickedProblem, shownMap)}</span>
+                <button onClick={() => setProblemPick(null)} aria-label="close">
+                  ×
+                </button>
+              </div>
+            )}
             {pickedText && (
               <div className={styles.previewBar}>
                 <span>{pickedText}</span>
@@ -658,6 +672,11 @@ function MapEditor() {
                 progress={progress ?? undefined}
                 preview={splitPreview ?? (merged ? [merged.outline] : undefined)}
                 markers={spot || problemSpots.length ? [...(spot ? [spot] : []), ...problemSpots] : undefined}
+                // (the spot from the activity page has its message above the map already)
+                onMarkerPick={(i) => {
+                  const n = i - (spot ? 1 : 0);
+                  if (n >= 0) setProblemPick(n === problemPick ? null : n);
+                }}
                 bodySpots={bodySpots ?? undefined}
                 bodySpace={realPlan?.checks?.space}
                 fitPlaces={realPlan?.checks?.places}

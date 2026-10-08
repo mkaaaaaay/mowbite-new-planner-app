@@ -1034,6 +1034,8 @@ const de: Record<string, string> = {
   "At the end one more round over the biggest pieces the plan leaves unmowed, a short pass over each. Only with the mower sizes.": "Zum Schluss noch eine Runde über die größten Stücke, die der Plan ungemäht lässt, mit einer kurzen Bahn über jedes. Nur mit den Mäher-Maßen.",
   "At the end a short pass over the biggest pieces left unmowed, a little more driving.": "Zum Schluss eine kurze Bahn über die größten ungemähten Reste, etwas mehr Fahrweg.",
   "The plan ends after its lanes and outline passes.": "Der Plan endet nach seinen Bahnen und Randrunden.",
+  "Collision check fixes": "Korrekturen der Kollisionsprüfung",
+  "The dashed circle is how far its corners reach while it turns.": "Der gestrichelte Kreis zeigt, wie weit seine Ecken beim Drehen reichen.",
 };
 
 export default de;

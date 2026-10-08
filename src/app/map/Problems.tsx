@@ -35,6 +35,12 @@ function text(p: Shown, map: MowerMap): string {
   }
 }
 
+// one of them in words with the area's name, for a red spot picked on the map
+export function problemText(p: Shown, map: MowerMap): string {
+  if (!('areaId' in p)) return text(p, map);
+  return `${map.areas.find((a) => a.id === p.areaId)?.properties.name || tr('unnamed')}: ${text(p, map)}`;
+}
+
 // what lib/mapCheck and lib/narrowPassages found in the map shown, a click on a name selects that area
 export default function Problems({problems, map, onSelect}: {problems: Shown[]; map: MowerMap; onSelect: (id: string) => void}) {
   if (!problems.length) return null;
