@@ -673,6 +673,8 @@ function MapView({
   const edgesOn = !!body && layerOn(hidden, 'edges');
   // what the collision check found and fixed in the plan shown
   const checksOn = layerOn(hidden, 'checks');
+  // the places where the body came too close get their cm once the map shows less than about 12 m across
+  const marginLabels = (shown?.size ?? WIDTH) / scale <= 12;
   const edges = useMemo(() => {
     if (!edgesOn || !body) return null;
     const at = (p: Point) => `${((p.x - minX) * scale + padX).toFixed(1)} ${(HEIGHT - ((p.y - minY) * scale + padY)).toFixed(1)}`;
@@ -1422,9 +1424,12 @@ function MapView({
           return (
             <g key={'margin' + i} className={styles.marginPlace}>
               <circle cx={x} cy={y} r={2.5 * k} />
-              <text x={x + 4 * k} y={y} dy="0.35em" fontSize={9 * k} strokeWidth={2.5 * k}>
-                {Math.round(p.m * 100)} cm
-              </text>
+              {/* the numbers only zoomed in, over the whole garden they lie on top of each other */}
+              {marginLabels && (
+                <text x={x + 4 * k} y={y} dy="0.35em" fontSize={9 * k} strokeWidth={2.5 * k}>
+                  {Math.round(p.m * 100)} cm
+                </text>
+              )}
             </g>
           );
         })}
