@@ -500,6 +500,9 @@ function MapView({
   useLayoutEffect(() => {
     if (!glides) return;
     let frame = 0;
+    // only once it moved by most of a pixel: every new viewBox draws the whole map again, at mowing speed a frame
+    // moves it by a fraction of a pixel
+    let last: [number, number, number] | null = null;
     const tick = () => {
       const p = followEaser.at(performance.now());
       const svg = svgRef.current;
@@ -508,7 +511,11 @@ function MapView({
         const size = followSpanMeters * followZoomRef.current * f.scale;
         const sx = (p.x - f.minX) * f.scale + f.padX;
         const sy = HEIGHT - ((p.y - f.minY) * f.scale + f.padY);
-        svg.setAttribute('viewBox', `${sx - size / 2} ${sy - size / 2} ${size} ${size}`);
+        const unit = (svg.getBoundingClientRect().width || 1) / size;
+        if (!last || last[2] !== size || Math.abs(sx - last[0]) * unit > 0.75 || Math.abs(sy - last[1]) * unit > 0.75) {
+          svg.setAttribute('viewBox', `${sx - size / 2} ${sy - size / 2} ${size} ${size}`);
+          last = [sx, sy, size];
+        }
       }
       frame = requestAnimationFrame(tick);
     };
