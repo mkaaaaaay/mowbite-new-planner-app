@@ -2,7 +2,12 @@
 
 A web app for [OpenMower](https://github.com/ClemensElflein/OpenMower) robot mowers. It runs on the
 mower itself as a small container (about 5 MB) and talks to OpenMower over MQTT, no cloud involved.
-Works on phones and desktops, and there's an Android app too.
+Works on phones and desktops.
+
+This is MowBite with the menus for the [MowBite Planner](https://github.com/mkaaaaaay/mowbite-planner),
+a coverage planner that runs next to OpenMower. Without the planner on the mower it behaves like the
+normal [MowBite](https://github.com/mkaaaaaay/mowbite), so if you don't want the planner, take that
+one. Both are betas, this one moves faster and breaks more often.
 
 ## What it does
 
@@ -22,6 +27,10 @@ Works on phones and desktops, and there's an Android app too.
   out like OpenMower's planner does it (including `mow_angle_offset`). It's an approximation, the
   order the mower drives the pieces in isn't shown.
 - **Mowing order** of the areas.
+- **MowBite Planner**, if it runs on the mower: its settings for all areas and per area (turn radius,
+  passes around the edge and obstacles, lane direction, collision check against the mower's body),
+  the plan it makes shown on the map with what it left out and why, and mowing the leftovers of the
+  last mow, from the dashboard or by itself.
 - **Tracks**: the trail of the current mow and of past mows, read from the mower's own history.
   Driving without blades is drawn dashed.
 - **Activity**: every day's runs from the mower's event history, with the result, the areas, the
@@ -58,16 +67,19 @@ Roughly in this order, nothing promised:
 - **Blades on while recording an area**, behind an extra confirmation.
 - **More languages**, send a translation if you like.
 
-Ideas and wishes are welcome as [issues](https://github.com/mkaaaaaay/mowbite/issues).
+Ideas and wishes are welcome as [issues](https://github.com/mkaaaaaay/mowbite-new-planner-app/issues).
 
 ## Install on the mower
 
-You need a running OpenMower with the MQTT websocket on port 9001, which is the default. On the
-mower:
+You need a running OpenMower with the MQTT websocket on port 9001, which is the default. For the
+planner menus the [MowBite Planner](https://github.com/mkaaaaaay/mowbite-planner) has to run on the
+mower too, its README says how to set it up. If the normal MowBite is on the mower, remove it first
+or change the port and the container name in `compose.yaml`, both use 8082 and the name `mowbite`.
+On the mower:
 
 ```bash
 mkdir mowbite && cd mowbite
-curl -O https://raw.githubusercontent.com/mkaaaaaay/mowbite/main/compose.yaml
+curl -O https://raw.githubusercontent.com/mkaaaaaay/mowbite-new-planner-app/main/compose.yaml
 docker compose pull
 docker compose up -d
 ```
@@ -79,8 +91,8 @@ mower) and amd64.
 ### Build it yourself
 
 ```bash
-git clone https://github.com/mkaaaaaay/mowbite.git
-cd mowbite
+git clone https://github.com/mkaaaaaay/mowbite-new-planner-app.git
+cd mowbite-new-planner-app
 docker compose up -d --build
 ```
 
@@ -88,15 +100,17 @@ Building on the mower needs about 1 GB of free space for a while. If yours is sh
 on a PC and copy the image over:
 
 ```bash
-docker buildx build --platform linux/arm64 -t ghcr.io/mkaaaaaay/mowbite:latest --load .
-docker save ghcr.io/mkaaaaaay/mowbite:latest | ssh openmower@<your-mower> docker load
+docker buildx build --platform linux/arm64 -t ghcr.io/mkaaaaaay/mowbite-new-planner-app:latest --load .
+docker save ghcr.io/mkaaaaaay/mowbite-new-planner-app:latest | ssh openmower@<your-mower> docker load
 ```
 
 ### Versions
 
-`latest` is the newest release, `dev` follows the dev branch and might be broken. Every release also
-gets its own tags, e.g. `1.0.0` and `1.0`, if you'd rather stay on one version: change the image in
-`compose.yaml` to `ghcr.io/mkaaaaaay/mowbite:1.0`. The settings page shows which version you have.
+There are no releases yet. `latest` follows the main branch, every commit there also gets a tag
+with its short hash (e.g. `sha-304d0df`) if you'd rather stay on one: change the image in
+`compose.yaml` to `ghcr.io/mkaaaaaay/mowbite-new-planner-app:sha-304d0df`. Take the newest planner
+with the newest app, the menus follow what the planner offers. The settings page shows which version
+you have.
 
 ### Update
 
@@ -135,16 +149,9 @@ touched, MowBite doesn't change any OpenMower files.
 
 ## Android app
 
-The same app as an APK, handy on a phone without typing an address into the browser:
-
-- [MowBite.apk](https://github.com/mkaaaaaay/mowbite/releases/latest/download/MowBite.apk), the latest
-  [release](https://github.com/mkaaaaaay/mowbite/releases)
-- [MowBite-dev.apk](https://github.com/mkaaaaaay/mowbite/releases/download/app-dev/MowBite-dev.apk),
-  built from the dev branch, might be broken
-
-Android asks once whether it may install apps from your browser. On the first start the app asks
-for your mower's address. MowBite has to run on the mower as described above, the app talks to it
-over your home network. Newer versions install over the old one and keep your settings.
+There is no APK of this version yet. Open it in the phone's browser and put it on the home screen.
+The [Android app of the normal MowBite](https://github.com/mkaaaaaay/mowbite/releases) doesn't have
+the planner menus.
 
 ## Configuration
 

@@ -1,7 +1,7 @@
 services:
   mowbite:
     # prebuilt for amd64 and arm64. `docker compose up -d --build` builds it yourself instead
-    image: ghcr.io/mkaaaaaay/mowbite:latest
+    image: ghcr.io/mkaaaaaay/mowbite-new-planner-app:latest
     build: .
     container_name: mowbite
     restart: unless-stopped
