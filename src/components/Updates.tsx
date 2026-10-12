@@ -3,7 +3,7 @@
 import {copyText} from '@/lib/clipboard';
 import {tr} from '@/lib/i18n';
 import {isApp} from '@/lib/native';
-import {APP_VERSION, checkNow, compareVersions, dismissUpdate, isNewer, setUpdateCheck, useUpdates} from '@/lib/updates';
+import {APP_VERSION, checkNow, compareVersions, dismissUpdate, isNewer, setUpdateCheck, UPDATES, useUpdates} from '@/lib/updates';
 import Link from 'next/link';
 import {useEffect, useState} from 'react';
 import {useMowerActions} from '@/hooks/useMowerActions';
@@ -60,70 +60,74 @@ export function UpdateSettings({cardClass, checkClass}: {cardClass: string; chec
         {app ? `${tr('App')} ${APP_VERSION} · ${tr('Mower')} ${mower ?? '?'}` : `MowBite ${APP_VERSION}`}
       </span>
       <NewerOpenMower />
-      <label className={checkClass}>
-        <input type="checkbox" checked={u.enabled} onChange={(e) => setUpdateCheck(e.target.checked)} />
-        {tr('Look for updates once a day (asks GitHub, which sees your IP address)')}
-      </label>
-      <div className={styles.status}>
-        <button className={styles.button} onClick={() => void checkNow()} disabled={u.checking}>
-          {u.checking ? tr('checking…') : tr('Check now')}
-        </button>
-        <span className={styles.versions}>
-          {u.failed
-            ? tr("Couldn't reach GitHub.")
-            : u.latest
-              ? appOld || mowerOld
-                ? ''
-                : compareVersions(APP_VERSION, u.latest.version) > 0
-                  ? tr("You're on a pre-release, the newest published one is {v}.", {v: u.latest.version})
-                  : tr('Up to date, the newest release is {v}.', {v: u.latest.version})
-              : ''}
-        </span>
-      </div>
+      {UPDATES && (
+        <>
+          <label className={checkClass}>
+            <input type="checkbox" checked={u.enabled} onChange={(e) => setUpdateCheck(e.target.checked)} />
+            {tr('Look for updates once a day (asks GitHub, which sees your IP address)')}
+          </label>
+          <div className={styles.status}>
+            <button className={styles.button} onClick={() => void checkNow()} disabled={u.checking}>
+              {u.checking ? tr('checking…') : tr('Check now')}
+            </button>
+            <span className={styles.versions}>
+              {u.failed
+                ? tr("Couldn't reach GitHub.")
+                : u.latest
+                  ? appOld || mowerOld
+                    ? ''
+                    : compareVersions(APP_VERSION, u.latest.version) > 0
+                      ? tr("You're on a pre-release, the newest published one is {v}.", {v: u.latest.version})
+                      : tr('Up to date, the newest release is {v}.', {v: u.latest.version})
+                  : ''}
+            </span>
+          </div>
 
-      {u.latest && appOld && (
-        <div className={styles.news}>
-          <span>
-            {tr('Version {v} of the app is out.', {v: u.latest.version})}{' '}
-            <a href={u.latest.url} target="_blank" rel="noreferrer">
-              {tr("What's new")}
-            </a>
-          </span>
-          {u.latest.apk && (
-            <div>
-              <button className={[styles.button, styles.primary].join(' ')} // the app hands links to other sites to the phone's browser, which downloads the apk
-                onClick={() => (window.location.href = u.latest!.apk!)}>
-                {tr('Download and install')}
-              </button>
+          {u.latest && appOld && (
+            <div className={styles.news}>
+              <span>
+                {tr('Version {v} of the app is out.', {v: u.latest.version})}{' '}
+                <a href={u.latest.url} target="_blank" rel="noreferrer">
+                  {tr("What's new")}
+                </a>
+              </span>
+              {u.latest.apk && (
+                <div>
+                  <button className={[styles.button, styles.primary].join(' ')} // the app hands links to other sites to the phone's browser, which downloads the apk
+                    onClick={() => (window.location.href = u.latest!.apk!)}>
+                    {tr('Download and install')}
+                  </button>
+                </div>
+              )}
+              <span className={styles.versions}>{tr('Android asks whether to install it, your settings stay.')}</span>
             </div>
           )}
-          <span className={styles.versions}>{tr('Android asks whether to install it, your settings stay.')}</span>
-        </div>
-      )}
 
-      {u.latest && mowerOld && (
-        <div className={styles.news}>
-          <span>
-            {tr('The mower runs MowBite {old}, {v} is out.', {old: mower ?? '', v: u.latest.version})}{' '}
-            <a href={u.latest.url} target="_blank" rel="noreferrer">
-              {tr("What's new")}
-            </a>
-          </span>
-          <span className={styles.versions}>{tr('To update, run this on the mower in the mowbite folder:')}</span>
-          <div className={styles.command}>
-            <code>{UPDATE_COMMAND}</code>
-            <button
-              className={styles.button}
-              onClick={() => {
-                copyText(UPDATE_COMMAND);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 1500);
-              }}
-            >
-              {copied ? tr('copied') : tr('Copy')}
-            </button>
-          </div>
-        </div>
+          {u.latest && mowerOld && (
+            <div className={styles.news}>
+              <span>
+                {tr('The mower runs MowBite {old}, {v} is out.', {old: mower ?? '', v: u.latest.version})}{' '}
+                <a href={u.latest.url} target="_blank" rel="noreferrer">
+                  {tr("What's new")}
+                </a>
+              </span>
+              <span className={styles.versions}>{tr('To update, run this on the mower in the mowbite folder:')}</span>
+              <div className={styles.command}>
+                <code>{UPDATE_COMMAND}</code>
+                <button
+                  className={styles.button}
+                  onClick={() => {
+                    copyText(UPDATE_COMMAND);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 1500);
+                  }}
+                >
+                  {copied ? tr('copied') : tr('Copy')}
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </section>
   );
@@ -132,7 +136,7 @@ export function UpdateSettings({cardClass, checkClass}: {cardClass: string; chec
 // on the dashboard, only when a check found something and it wasn't waved away
 export function UpdateBanner() {
   const {u, appOld, mowerOld} = useOutdated();
-  if (!u.latest || !(appOld || mowerOld) || u.dismissed === u.latest.version) return null;
+  if (!UPDATES || !u.latest || !(appOld || mowerOld) || u.dismissed === u.latest.version) return null;
   const v = u.latest.version;
   return (
     <div className={styles.banner}>

@@ -50,8 +50,6 @@ one. Both are betas, this one moves faster and breaks more often.
   top of the page.
 - **Weather** for the garden on the dashboard, optional: temperature, sky and whether rain is
   coming in the next hours, from [Open-Meteo](https://open-meteo.com).
-- **Update check**, off by default: once a day it asks GitHub for a new release. The Android app
-  then downloads the new version, for the mower it shows the command to update.
 - **English and German**, following the browser or picked per device in the settings.
 - **Light and dark design**, following the device or picked in the settings.
 

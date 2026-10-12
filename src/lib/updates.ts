@@ -5,6 +5,8 @@ import {apiBase} from './mowers';
 // device in the settings, then once a day. "check now" works either way.
 
 const REPO = 'mkaaaaaay/mowbite';
+// this app has no releases of its own yet, the ones over there are the app without the planner menus: no check
+export const UPDATES = false;
 const ENABLED_KEY = 'updateCheck';
 const INFO_KEY = 'updateInfo';
 const DISMISSED_KEY = 'updateDismissed';
@@ -142,7 +144,7 @@ export function useUpdates(): State {
     started = true;
     void loadMowerVersion();
     const c = current();
-    if (c.enabled && (!c.checkedAt || Date.now() - c.checkedAt > DAY)) void checkNow();
+    if (UPDATES && c.enabled && (!c.checkedAt || Date.now() - c.checkedAt > DAY)) void checkNow();
   }, []);
   return s;
 }
