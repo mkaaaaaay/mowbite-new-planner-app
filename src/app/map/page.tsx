@@ -548,6 +548,8 @@ function MapEditor() {
           previewCorrection,
           planFromMower: !!realPlan,
           planChosen: plan?.chosen,
+          planDuration: realPlan?.duration,
+          planZones: realPlan?.zones?.length,
           byPlanner: !!plannerSettings,
           planAngle: realPlan?.angle,
           planLength: shownArea?.properties.mowable === false || shownArea?.properties.active === false ? 0 : planLength,
@@ -668,6 +670,7 @@ function MapEditor() {
                 // the area being mowed shows how far the mower got instead of its plan
                 stripes={progress && progress.areaId === selectedAreaId ? undefined : stripes}
                 loops={progress && progress.areaId === selectedAreaId ? undefined : plan?.loops}
+                pieces={progress && progress.areaId === selectedAreaId ? undefined : plan?.pieces}
                 openLoops={!!plan?.open}
                 progress={progress ?? undefined}
                 preview={splitPreview ?? (merged ? [merged.outline] : undefined)}

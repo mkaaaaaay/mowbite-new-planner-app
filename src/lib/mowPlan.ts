@@ -32,6 +32,31 @@ export interface MowPlan {
   chosen?: PlanChosen;
   // what its collision mode found while planning
   checks?: PlanChecks;
+  // the plan cut into pieces by what they are (the MowBite Planner tells): the map leaves turns and drives out on wish
+  pieces?: PlanPiece[];
+  // how long it says the plan takes
+  duration?: PlanDuration;
+  // the parts of the lawn with a lane direction of their own (split_zones)
+  zones?: PlanZone[];
+}
+
+export interface PlanPiece {
+  type: 'perimeter' | 'lane' | 'turn' | 'transit';
+  points: Point[];
+}
+
+// min: the mowing time, the planner's model corrected by the last runs finished mows (factor, runs 0: not corrected yet)
+export interface PlanDuration {
+  min: number;
+  modelMin: number;
+  factor: number;
+  runs: number;
+}
+
+export interface PlanZone {
+  angle: number; // rad
+  lanes: number;
+  outlines: Point[][];
 }
 
 // The MowBite Planner with the mower's body checks every plan: where the body would stick out past a real edge or into

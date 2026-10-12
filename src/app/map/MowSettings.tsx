@@ -7,7 +7,7 @@ import {tr} from '@/lib/i18n';
 import {useState} from 'react';
 import {duration} from '@/lib/dates';
 import {savedRate} from '@/lib/planProgress';
-import type {PlanChosen} from '@/lib/mowPlan';
+import type {PlanChosen, PlanDuration} from '@/lib/mowPlan';
 import {DEG, normDeg, overrideError, type Area, type Override, type UpdateArea} from './editing';
 import styles from './page.module.css';
 import {PATHS} from '@/lib/openmower';
@@ -96,6 +96,9 @@ type Props = {
   planLength: number;
   // what the MowBite Planner plans the area with (the lane spacing it picked, the outline passes)
   planChosen?: PlanChosen;
+  // how long it says the plan takes, and the parts it gave a direction of their own
+  planDuration?: PlanDuration;
+  planZones?: number;
   // the MowBite Planner is on the mower: the outline passes are set in its menu, not here
   byPlanner?: boolean;
   // the plan with what it was made from as a file
@@ -333,6 +336,8 @@ export function AreaPlanInfo({
   planAngle,
   planLength,
   planChosen,
+  planDuration,
+  planZones,
   onSaveCase,
 }: Props) {
   const rate = savedRate();
@@ -353,7 +358,7 @@ export function AreaPlanInfo({
                   planChosen.mode === 'auto' ? `, ${tr('picked by the planner')}` : ''
                 }, ${tr('{n} outline passes', {n: planChosen.perimeter_passes})}${
                   planChosen.fill_pattern === 'concentric' ? `, ${tr('rings')}` : ''
-                })`
+                }${planZones ? `, ${tr('{n} parts with their own direction', {n: planZones})}` : ''})`
               : toolWidth
                 ? ` (${tr('{n} cm apart', {n: Math.round(toolWidth * 100)})})`
                 : ''}
@@ -371,9 +376,15 @@ export function AreaPlanInfo({
       {showStripes && planLength > 0 && (
         <p className={styles.dim}>
           {tr('{m} m to mow', {m: Math.round(planLength)})}
-          {rate && ` · ${tr('about {time}', {time: duration(planLength / rate)})}`}
+          {planDuration
+            ? ` · ${tr('about {time}', {time: duration(planDuration.min * 60)})}`
+            : rate && ` · ${tr('about {time}', {time: duration(planLength / rate)})}`}
           <InfoTip>
-            {tr('Length of all passes and stripes. The time is based on the last run you watched on the dashboard.')}
+            {planDuration
+              ? planDuration.runs > 0
+                ? tr("Length of all passes and stripes. The time is the planner's, corrected by the last {n} finished mows of this area.", {n: planDuration.runs})
+                : tr("Length of all passes and stripes. The time is the planner's estimate, it gets corrected by the finished mows of this area.")
+              : tr('Length of all passes and stripes. The time is based on the last run you watched on the dashboard.')}
           </InfoTip>
         </p>
       )}

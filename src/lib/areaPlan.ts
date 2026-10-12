@@ -1,6 +1,6 @@
 import type {Point} from '@/hooks/useMowerMap';
-import type {MowPlan, PlanChecks, PlanChosen} from './mowPlan';
-import type {PlanPath} from './planProgress';
+import type {MowPlan, PlanChecks, PlanChosen, PlanDuration, PlanPiece, PlanZone} from './mowPlan';
+import {planPieces, type PlanPath, type PlanSegment, type SegmentType} from './planProgress';
 import {RPC} from './openmower';
 import {callRpc, rpcMethods} from './rpc';
 
@@ -12,7 +12,20 @@ interface PlannerPath {
   points?: ([number, number] | Point)[];
   pose_index?: number[];
   path?: {poses?: {pose: {position: Point}}[]};
+  // the MowBite Planner: what the stretches of the path are
+  segments?: {type?: unknown; start?: unknown; end?: unknown}[];
 }
+
+const SEGMENT_TYPES = new Set<string>(['perimeter', 'lane', 'turn', 'transit']);
+const segments = (p: PlannerPath): PlanSegment[] | undefined => {
+  if (!Array.isArray(p.segments)) return undefined;
+  const out = p.segments.flatMap((s) =>
+    s && typeof s.type === 'string' && SEGMENT_TYPES.has(s.type) && typeof s.start === 'number' && typeof s.end === 'number'
+      ? [{type: s.type as SegmentType, start: s.start, end: s.end}]
+      : [],
+  );
+  return out.length ? out : undefined;
+};
 
 const points = (p: PlannerPath): Point[] =>
   p.points?.map((q) => (Array.isArray(q) ? {x: q[0], y: q[1]} : {x: q.x, y: q.y})) ??
@@ -25,17 +38,49 @@ export function readPaths(answer: {paths?: PlannerPath[]} | PlannerPath[]): Plan
     const pts = points(p);
     // the points come simplified, only pose_index says which pose of the full path each one is
     const index = p.pose_index?.length === pts.length ? p.pose_index : p.path?.poses ? pts.map((_, i) => i) : undefined;
-    return {outline: !!(p.is_outline || p.outline), points: pts, index};
+    const segs = segments(p);
+    return {outline: !!(p.is_outline || p.outline), points: pts, index, ...(segs ? {segments: segs} : {})};
   });
 }
 
 type PlanAnswer = {
   paths?: PlannerPath[];
   angle?: number;
-  stats?: {chosen?: PlanChosen; body_fit?: unknown; headland_turns?: unknown};
+  stats?: {chosen?: PlanChosen; body_fit?: unknown; headland_turns?: unknown; zones?: unknown};
   warnings?: unknown;
   body_space?: unknown;
+  // the MowBite Planner's estimate of the mowing time, corrected by the last finished mows
+  duration?: {min?: unknown; model_min?: unknown; factor?: unknown; runs?: unknown};
 };
+
+// how long the planner says the plan takes (planner.plan duration), nothing from a planner without it
+export function readDuration(answer: PlanAnswer): PlanDuration | undefined {
+  const d = answer.duration;
+  if (!d || typeof d.min !== 'number' || !Number.isFinite(d.min) || d.min < 0) return undefined;
+  return {
+    min: d.min,
+    modelMin: typeof d.model_min === 'number' ? d.model_min : d.min,
+    factor: typeof d.factor === 'number' ? d.factor : 1,
+    runs: typeof d.runs === 'number' ? d.runs : 0,
+  };
+}
+
+// the parts of the lawn the planner gave a lane direction of their own (split_zones), their outlines
+export function readZones(answer: PlanAnswer): PlanZone[] {
+  const zones = answer.stats?.zones;
+  if (!Array.isArray(zones)) return [];
+  return zones.flatMap((z: {angle?: unknown; lanes?: unknown; outlines?: unknown}) =>
+    z && typeof z === 'object'
+      ? [
+          {
+            angle: typeof z.angle === 'number' ? z.angle : 0,
+            lanes: typeof z.lanes === 'number' ? z.lanes : 0,
+            outlines: (Array.isArray(z.outlines) ? z.outlines.map(xys) : []).filter((o) => o.length >= 3),
+          },
+        ]
+      : [],
+  );
+}
 
 const xy = (v: unknown): Point | null => (Array.isArray(v) && typeof v[0] === 'number' && typeof v[1] === 'number' ? {x: v[0], y: v[1]} : null);
 const xys = (v: unknown): Point[] => (Array.isArray(v) ? v.map(xy).filter((p): p is Point => !!p) : []);
@@ -90,13 +135,28 @@ export function readChecks(answer: PlanAnswer): PlanChecks | undefined {
 export function readPlan(answer: PlanAnswer | PlannerPath[]): MowPlan {
   const loops: Point[][] = [];
   const stripes: [Point, Point][] = [];
-  for (const p of readPaths(answer)) {
+  const paths = readPaths(answer);
+  for (const p of paths) {
     if (p.outline) loops.push(p.points);
     else for (let i = 1; i < p.points.length; i++) stripes.push([p.points[i - 1], p.points[i]]);
   }
+  // the plan in pieces by what they are, only when the planner tells
+  const pieces: PlanPiece[] | undefined = paths.some((p) => p.segments) ? paths.flatMap(planPieces) : undefined;
   const chosen = Array.isArray(answer) ? undefined : answer.stats?.chosen;
   const checks = Array.isArray(answer) ? undefined : readChecks(answer);
-  return {loops, stripes, angle: Array.isArray(answer) ? undefined : answer.angle, open: true, ...(chosen ? {chosen} : {}), ...(checks ? {checks} : {})};
+  const duration = Array.isArray(answer) ? undefined : readDuration(answer);
+  const zones = Array.isArray(answer) ? [] : readZones(answer);
+  return {
+    loops,
+    stripes,
+    angle: Array.isArray(answer) ? undefined : answer.angle,
+    open: true,
+    ...(pieces ? {pieces} : {}),
+    ...(chosen ? {chosen} : {}),
+    ...(checks ? {checks} : {}),
+    ...(duration ? {duration} : {}),
+    ...(zones.length ? {zones} : {}),
+  };
 }
 
 // what mowing.plan takes: a saved area by id, or an area as it is right now in the editor (map.json format,

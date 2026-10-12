@@ -310,6 +310,9 @@ export function PlannerSimple({
   const autoPasses = all.perimeter_passes?.auto_value;
   const passesAuto = autoPasses !== undefined && passes === autoPasses;
   const passesShown = area && area.own.perimeter_passes === undefined ? (omCount('outline_count') ?? global('perimeter_passes')) : passes;
+  // the passes round the obstacles: automatic is as many as along the outline
+  const autoObstacle = all.obstacle_passes?.auto_value;
+  const obstacleAuto = autoObstacle !== undefined && effective('obstacle_passes') === autoObstacle;
   // the outline passes the lanes reach into: the area's own, OpenMower's of the area, the one for all areas
   const overlapOwn = area ? area.own.lane_overlap_passes : global('lane_overlap_passes');
   const overlapElse = area ? (omCount('outline_overlap_count') ?? global('lane_overlap_passes')) : all.lane_overlap_passes?.default;
@@ -550,6 +553,22 @@ export function PlannerSimple({
               {choice('narrow_parts', FIELDS.narrow_parts.choices!)}
             </Row>
           )}
+          {has('split_zones') && (
+            <Row
+              label={tr('Parts with their own direction')}
+              help={tr(FIELDS.split_zones.help)}
+              note={
+                effective('fill_pattern') !== 'lanes' || effective('headland_turns')
+                  ? tr('No effect with crosshatch, rings or clean stripes.')
+                  : effective('split_zones')
+                    ? tr('A part better mowed another way gets lanes its own way, where that saves lanes.')
+                    : tr('Off: one direction for the whole area.')
+              }
+              source={others('split_zones')}
+            >
+              {toggle('split_zones')}
+            </Row>
+          )}
           {/* only with the mower's sizes, the planner leaves it out otherwise */}
           {has('mop_up') && sized && (
             <Row
@@ -720,6 +739,43 @@ export function PlannerSimple({
               </div>
             </Row>
           )}
+          {has('obstacle_passes') && (
+            <Row
+              label={tr('Passes around obstacles')}
+              help={tr('How many rounds the mower drives round each obstacle, on their own from the outline passes. Automatic: as many as along the outline. 0: none, the lanes go round the obstacle.')}
+              note={
+                obstacleAuto
+                  ? tr('As many as along the outline.')
+                  : num('obstacle_passes') === 0
+                    ? tr('None, the lanes go round the obstacles.')
+                    : tr('Always this many.')
+              }
+              source={others('obstacle_passes') || ownLine('obstacle_passes')}
+            >
+              <div className={local.inline}>
+                {autoObstacle !== undefined && (
+                  <button
+                    className={obstacleAuto ? local.on : undefined}
+                    disabled={state.busy}
+                    onClick={() => void save('obstacle_passes', obstacleAuto ? undefined : autoObstacle)}
+                  >
+                    {tr('automatic')}
+                  </button>
+                )}
+                {!obstacleAuto &&
+                  numberField(
+                    'obstaclePasses',
+                    area && area.own.obstacle_passes === undefined ? '' : typeof num('obstacle_passes') === 'number' ? String(num('obstacle_passes')) : '',
+                    typeof global('obstacle_passes') === 'number' && global('obstacle_passes') !== autoObstacle ? String(global('obstacle_passes')) : '',
+                    tr('rounds'),
+                    (text) => {
+                      const n = parse(text);
+                      void save('obstacle_passes', n === null ? undefined : Math.max(0, Math.round(n)));
+                    },
+                  )}
+              </div>
+            </Row>
+          )}
           {has('lane_overlap_passes') && effective('fill_pattern') !== 'concentric' && (
             <Row
               label={tr('Overlapping passes')}
@@ -820,7 +876,7 @@ export function PlannerSimple({
           </Section>
         )}
 
-        {(has('turn_on_spot') || has('turn_radius') || has('body_fit') || has('spin_margin')) && (
+        {(has('turn_on_spot') || has('turn_radius') || has('turn_radius_auto') || has('body_fit') || has('spin_margin')) && (
           <Section title={tr('Turns')}>
             {has('turn_on_spot') && (
               <Row
@@ -856,6 +912,20 @@ export function PlannerSimple({
                 source={others('turn_radius') || ownLine('turn_radius')}
               >
                 {cmField('turn_radius', 300)}
+              </Row>
+            )}
+            {has('turn_radius_auto') && (
+              <Row
+                label={tr('Wider turns where there is room')}
+                help={tr(FIELDS.turn_radius_auto.help)}
+                note={
+                  effective('turn_radius_auto')
+                    ? tr('Each turn as wide as there is room for, none tighter than the turn radius.')
+                    : tr('Off: every turn with the turn radius.')
+                }
+                source={others('turn_radius_auto') || ownLine('turn_radius_auto')}
+              >
+                {toggle('turn_radius_auto')}
               </Row>
             )}
             {has('body_fit') && (

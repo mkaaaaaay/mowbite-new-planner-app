@@ -3,7 +3,7 @@
 import {TitleMark} from '@/components/Logo';
 import {saveSettings, settingsStore, sharedSettings, type OtherMower, type Settings} from '@/lib/settings';
 import {useRouter} from 'next/navigation';
-import {useState, useSyncExternalStore} from 'react';
+import {useEffect, useState, useSyncExternalStore} from 'react';
 import styles from './page.module.css';
 import {setLangChoice, tr, useLang, useLangChoice} from '@/lib/i18n';
 import {setThemeChoice, useThemeChoice} from '@/lib/theme';
@@ -11,7 +11,7 @@ import {appMowers, saveAppMowers} from '@/lib/mowers';
 import {isApp} from '@/lib/native';
 import {setSwipeEnabled, useSwipeEnabled} from '@/lib/swipe';
 import {UpdateSettings} from '@/components/Updates';
-import {usePlannerSettings} from '@/lib/mowerBody';
+import {loadPlannerSettings, usePlannerSettings} from '@/lib/mowerBody';
 import Link from 'next/link';
 import {MowerSizesSettings} from '@/components/MowerSizesSettings';
 import {NotifySettings} from '@/components/NotifySettings';
@@ -186,8 +186,12 @@ export default function SettingsPage() {
   // back to wherever the gear was clicked, or the dashboard when the page was opened directly
   const back = () => (window.history.length > 1 ? router.back() : router.push('/'));
   const settings = useSyncExternalStore(settingsStore.subscribe, settingsStore.snapshot, settingsStore.serverSnapshot);
-  // the MowBite Planner on the mower: its settings are with the map
+  // the MowBite Planner on the mower: its settings are with the map. Asked here too, the page may be the first one
+  // opened
   const planner = usePlannerSettings();
+  useEffect(() => {
+    if (planner === undefined) loadPlannerSettings().catch(() => {});
+  }, [planner]);
 
   return (
     <div className={styles.page}>
@@ -302,6 +306,42 @@ export default function SettingsPage() {
             <Link href="/map" className={styles.pillButton}>
               {tr('To the map')}
             </Link>
+          </section>
+        )}
+        {planner && (
+          <section className={styles.card}>
+            <h2>{tr('Mow the leftovers')}</h2>
+            <p className={styles.dim}>
+              {tr(
+                'After a finished mow the planner looks at the real track for pieces the mower missed (it drifted, went round something). On the dashboard you can have just those mowed, or it happens by itself: once the mower is back in the dock it goes out again for them. Only with the MowBite container on the mower.',
+              )}
+            </p>
+            <label className={styles.check}>
+              <input
+                type="checkbox"
+                checked={!!settings.leftovers?.auto}
+                onChange={(e) => {
+                  const cur = settingsStore.snapshot();
+                  saveSettings({...cur, leftovers: {...cur.leftovers, auto: e.target.checked}});
+                }}
+              />
+              {tr('Mow the leftovers by itself after every finished mow')}
+            </label>
+            <label className={styles.field}>
+              {tr('Only from this much left, in m²')}
+              <input
+                key={'leftmin' + (settings.leftovers?.min ?? '')}
+                inputMode="decimal"
+                defaultValue={settings.leftovers?.min ?? 0.5}
+                disabled={!settings.leftovers?.auto}
+                onBlur={(e) => {
+                  const v = Number(e.target.value.trim().replace(',', '.'));
+                  const cur = settingsStore.snapshot();
+                  saveSettings({...cur, leftovers: {...cur.leftovers, min: Number.isFinite(v) && v >= 0 ? v : 0.5}});
+                }}
+              />
+            </label>
+            <p className={styles.dim}>{tr('Not in the dark, not in the rain, not with an emergency stop, like the schedule. What it did is in the schedule log.')}</p>
           </section>
         )}
         <Group id="mower" title={tr('Your mower')}>

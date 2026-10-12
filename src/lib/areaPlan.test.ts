@@ -78,3 +78,42 @@ describe('readChecks', () => {
     expect(readPlan({paths: []}).checks).toBeUndefined();
   });
 });
+
+describe('the MowBite Planner answer', () => {
+  it('cuts the paths into pieces by their segments, and reads the duration and the zones', () => {
+    const plan = readPlan({
+      paths: [
+        {
+          is_outline: false,
+          points: [[0, 0], [1, 0], [1, 1], [0, 1], [0, 2], [1, 2]],
+          pose_index: [0, 10, 15, 20, 25, 35],
+          segments: [
+            {type: 'lane', start: 0, end: 10},
+            {type: 'turn', start: 10, end: 20},
+            {type: 'transit', start: 20, end: 25},
+            {type: 'lane', start: 25, end: 35},
+          ],
+        },
+      ],
+      duration: {min: 41.5, model_min: 40, factor: 1.04, runs: 3},
+      stats: {zones: [{angle: 0.5, lanes: 7, outlines: [[[0, 0], [1, 0], [1, 1]]]}, 'x']},
+    });
+    expect(plan.pieces?.map((p) => [p.type, p.points.length])).toEqual([
+      ['lane', 2],
+      ['turn', 3],
+      ['transit', 2],
+      ['lane', 2],
+    ]);
+    // the pieces join up: the turn starts where the lane ended
+    expect(plan.pieces?.[1].points[0]).toEqual({x: 1, y: 0});
+    expect(plan.duration).toEqual({min: 41.5, modelMin: 40, factor: 1.04, runs: 3});
+    expect(plan.zones).toEqual([{angle: 0.5, lanes: 7, outlines: [[{x: 0, y: 0}, {x: 1, y: 0}, {x: 1, y: 1}]]}]);
+  });
+
+  it('has no pieces, duration or zones from a planner that does not tell', () => {
+    const plan = readPlan({paths: [{is_outline: true, points: [[0, 0], [1, 0], [1, 1]], pose_index: [0, 1, 2]}]});
+    expect(plan.pieces).toBeUndefined();
+    expect(plan.duration).toBeUndefined();
+    expect(plan.zones).toBeUndefined();
+  });
+});

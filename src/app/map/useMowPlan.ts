@@ -11,6 +11,7 @@ import type {PlannerEstimateInput} from '@/lib/plannerEstimate';
 import {usePlannerEstimate} from '@/lib/usePlannerEstimate';
 import {angleInRange, autoMowAngle} from '@/lib/mowStripes';
 import {PARAM} from '@/lib/openmower';
+import {savePlanDuration} from '@/lib/planDurations';
 import {length} from '@/lib/planProgress';
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {DEG} from './editing';
@@ -253,6 +254,8 @@ export function useMowPlan({
         (plan) => {
           remember(job.cacheKey, plan);
           if (plan?.chosen && job.areaId) CHOSEN.set(job.areaId, plan.chosen);
+          // how long the area as saved takes, for the schedule
+          if (plan?.duration && job.areaId && 'area_id' in JSON.parse(job.key)) savePlanDuration(job.areaId, plan.duration.min, plan.duration.runs);
           if (!background) setFromMower({...job, plan});
         },
         () => !background && setFromMower({...job, plan: null}),

@@ -6,7 +6,7 @@ import {createEaser, useEasedPose, type Pose} from '@/hooks/useEasedPose';
 import {containsPoint, polygonArea} from '@/lib/geometry';
 import {settingsStore, type Settings} from '@/lib/settings';
 import {bladeSeconds, bodyShape, realEdges, roundBends, swathEnd, swathGroups, swathAfter, swathTail, useMowerBody, type MowerBody, type SwathState} from '@/lib/mowerBody';
-import type {FitPose} from '@/lib/mowPlan';
+import type {FitPose, PlanPiece} from '@/lib/mowPlan';
 import {useSensorValue} from '@/hooks/useMowerSensors';
 import {dockIcon, drawMower, mowerIcon} from './mapIcons';
 import {availableSources, imageryTiles, type Datum} from '@/lib/imagery';
@@ -56,6 +56,9 @@ interface MapViewProps {
   zoomable?: boolean;
   // mowing direction preview
   stripes?: Point[][];
+  // the plan in pieces by what they are (the MowBite Planner tells): drawn in place of the stripes and loops, the
+  // turns and the drives between the parts left out when switched off in the layer menu
+  pieces?: PlanPiece[];
   // the outline passes of the mowing plan, drawn with the stripes
   loops?: Point[][];
   // the loops are paths as driven (the mower's plan), drawn without closing them: closed, the line back to the start
@@ -326,6 +329,7 @@ function MapView({
   stripes,
   loops,
   openLoops,
+  pieces,
   preview,
   overlay,
   markers,
@@ -696,10 +700,25 @@ function MapView({
 
   // the plan and the tracks only change with their data, panning and zooming just move the viewBox: kept as they are,
   // a frame of a gesture doesn't build hundreds of paths again
-  const stripesPath = useMemo(() => (stripes?.length ? pathOf(stripes, {minX, minY, scale, padX, padY}) : ''), [stripes, minX, minY, scale, padX, padY]);
+  // with the plan in pieces the outline passes and lanes are one path, the turns and the drives between the parts
+  // their own, each switched off on its own
+  const turnsOn = layerOn(hidden, 'planTurns');
+  const transitOn = layerOn(hidden, 'planTransit');
+  const piecePaths = useMemo(() => {
+    if (!pieces?.length) return null;
+    const of = (types: PlanPiece['type'][]) => {
+      const list = pieces.filter((q) => types.includes(q.type)).map((q) => q.points);
+      return list.length ? pathOf(list, {minX, minY, scale, padX, padY}) : '';
+    };
+    return {mowed: of(['perimeter', 'lane']), turns: of(['turn']), transit: of(['transit'])};
+  }, [pieces, minX, minY, scale, padX, padY]);
+  const stripesPath = useMemo(
+    () => (!piecePaths && stripes?.length ? pathOf(stripes, {minX, minY, scale, padX, padY}) : ''),
+    [piecePaths, stripes, minX, minY, scale, padX, padY],
+  );
   const loopsPath = useMemo(
-    () => (loops?.length ? pathOf(loops, {minX, minY, scale, padX, padY}, !openLoops) : ''),
-    [loops, openLoops, minX, minY, scale, padX, padY],
+    () => (!piecePaths && loops?.length ? pathOf(loops, {minX, minY, scale, padX, padY}, !openLoops) : ''),
+    [piecePaths, loops, openLoops, minX, minY, scale, padX, padY],
   );
   const todoPath = useMemo(
     () => (progress ? pathOf(progress.todo, {minX, minY, scale, padX, padY}) : null),
@@ -1187,6 +1206,13 @@ function MapView({
 
         {loopsPath && !hidden.has('stripes') && <path className={styles.stripes} d={loopsPath} />}
         {stripesPath && !hidden.has('stripes') && <path className={styles.stripes} d={stripesPath} />}
+        {piecePaths && !hidden.has('stripes') && (
+          <>
+            {piecePaths.mowed && <path className={styles.stripes} d={piecePaths.mowed} />}
+            {turnsOn && piecePaths.turns && <path className={styles.stripes} d={piecePaths.turns} />}
+            {transitOn && piecePaths.transit && <path className={styles.planTransit} d={piecePaths.transit} />}
+          </>
+        )}
 
         {selectedArea && (
           <polygon
@@ -1523,6 +1549,7 @@ function MapView({
         layersOpen={layersOpen}
         onLayersOpen={setLayersOpen}
         body={body ? {blade: body.blade > 0} : undefined}
+        planParts={!!pieces?.length}
         planStyle={
           progress
             ? {

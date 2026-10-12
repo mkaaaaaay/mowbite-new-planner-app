@@ -42,6 +42,8 @@ export const RPC = {
   plannerDrive: 'planner.drive',
   // the angle turned further after finished mows (angle_increment) back to 0, answers like planner.settings
   plannerAngleReset: 'planner.angle.reset',
+  // what a finished mow's real track left unmowed, as passes over it; armed, the mower drives those on the next start
+  plannerLeftovers: 'planner.leftovers',
 } as const;
 
 export const ACTION = {

@@ -436,6 +436,17 @@
 }
 
 /* the mower's plan for the area it's mowing: what's left, and what it has done */
+/* the drives between the parts of the plan, dashed like the track without blades */
+.planTransit {
+  fill: none;
+  stroke: var(--c-stripes);
+  stroke-opacity: 0.45;
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
 .planTodo {
   fill: none;
   stroke: var(--foreground);
