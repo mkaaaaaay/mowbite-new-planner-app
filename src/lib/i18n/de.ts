@@ -1078,6 +1078,10 @@ const de: Record<string, string> = {
   "Mow the leftovers automatically": "Reste automatisch nachmähen",
   "After a mow the mower goes out again by itself when more than 0.3 m² it can reach was left, within 15 minutes of the end of the mow or not at all. Not in the rain, not with an emergency stop. It does not wait for daylight: after a mow that ended at dusk it goes out in the dark.": "Nach dem Mähen fährt der Mäher von selbst noch einmal los, wenn mehr als 0,3 m² erreichbar stehen geblieben sind, innerhalb von 15 Minuten nach dem Ende oder gar nicht. Nicht bei Regen, nicht bei Notaus. Auf Tageslicht wartet er nicht: Endet ein Mähvorgang in der Dämmerung, fährt er im Dunkeln los.",
   "Not with OpenMower's slic3r planner, it plans no leftovers.": "Nicht mit dem slic3r-Planer von OpenMower, der plant keine Reste.",
+  "Turns stay within the overlap": "Wenden bleiben in der Überlappung",
+  "On: lanes and the turns between them go no further out than the overlapping passes say. Where no curve fits there the mower turns on the spot, and a lane starts later where the outline passes already mowed. Off: the turns take the room they need in the outline passes, which looks like more overlap than set. Costs more turns on the spot, least with 2 overlapping passes.": "An: Bahnen und die Wenden dazwischen fahren nicht weiter nach außen, als die überlappenden Runden vorgeben. Wo dort kein Bogen passt, dreht der Mäher auf der Stelle, und eine Bahn beginnt später, wo die Randrunden schon gemäht haben. Aus: Die Wenden nehmen sich den Platz in den Randrunden, das sieht nach mehr Überlappung aus als eingestellt. Kostet mehr Drehungen auf der Stelle, am wenigsten bei 2 überlappenden Runden.",
+  "Lanes and turns go no further out than the overlapping passes, more turning on the spot.": "Bahnen und Wenden fahren nicht weiter nach außen als die überlappenden Runden, dafür mehr Drehen auf der Stelle.",
+  "Off: the turns take the room they need in the outline passes.": "Aus: Die Wenden nehmen sich den Platz in den Randrunden.",
 };
 
 export default de;

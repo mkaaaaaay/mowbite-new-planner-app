@@ -802,6 +802,20 @@ export function PlannerSimple({
               )}
             </Row>
           )}
+          {has('lane_overlap_limit') && effective('fill_pattern') !== 'concentric' && (
+            <Row
+              label={tr('Turns stay within the overlap')}
+              help={tr(FIELDS.lane_overlap_limit.help)}
+              note={
+                effective('lane_overlap_limit')
+                  ? tr('Lanes and turns go no further out than the overlapping passes, more turning on the spot.')
+                  : tr('Off: the turns take the room they need in the outline passes.')
+              }
+              source={others('lane_overlap_limit') || ownLine('lane_overlap_limit')}
+            >
+              {toggle('lane_overlap_limit')}
+            </Row>
+          )}
           {has('perimeter_order') && (
             <Row
               label={tr('Outline passes first or last')}

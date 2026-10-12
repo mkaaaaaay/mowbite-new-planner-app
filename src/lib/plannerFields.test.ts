@@ -23,6 +23,7 @@ describe('planner fields', () => {
       'narrow_parts',
       'angle_strategy',
       'lane_overlap_passes',
+      'lane_overlap_limit',
       'obstacle_passes',
       'perimeter_order',
       'turn_radius',

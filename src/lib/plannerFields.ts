@@ -143,6 +143,12 @@ export const FIELDS: Record<string, Field> = {
     step: 1,
     area: true,
   },
+  lane_overlap_limit: {
+    label: 'Turns stay within the overlap',
+    help: 'On: lanes and the turns between them go no further out than the overlapping passes say. Where no curve fits there the mower turns on the spot, and a lane starts later where the outline passes already mowed. Off: the turns take the room they need in the outline passes, which looks like more overlap than set. Costs more turns on the spot, least with 2 overlapping passes.',
+    group: 'edge',
+    area: true,
+  },
   obstacle_passes: {
     label: 'Passes around obstacles',
     help: "How many passes go round each obstacle, on their own from the outline passes. Automatic: as many as along the outline. 0: none, the lanes go round them.",
@@ -355,6 +361,7 @@ export const SIMPLE = [
   'perimeter_passes',
   'obstacle_passes',
   'lane_overlap_passes',
+  'lane_overlap_limit',
   'perimeter_order',
   'edge_margin',
   'obstacle_margin',
