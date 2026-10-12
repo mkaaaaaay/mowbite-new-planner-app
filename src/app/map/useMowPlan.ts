@@ -195,11 +195,13 @@ export function useMowPlan({
       props.angle_min = p.angle_min;
       props.angle_max = p.angle_max;
     }
-    // the area's planner settings as edited. The mower puts the saved area's under what's asked: one taken out here is
-    // asked for as it is for all areas, the plan would still have the saved one until the map is saved otherwise
+    // the area's planner settings as edited, only for the MowBite Planner (with OpenMower's slic3r planner the plan
+    // comes from mowing.plan like without MowBite, planner.plan would plan with them). The mower puts the saved
+    // area's under what's asked: one taken out here is asked for as it is for all areas, the plan would still have
+    // the saved one until the map is saved otherwise
     const saved = liveMap?.areas.find((a) => a.id === area.id)?.properties;
-    const own = p.planner ?? {};
-    const dropped = Object.keys(saved?.planner ?? {}).filter((k) => own[k] === undefined && (planner?.settings[k]?.value ?? null) !== null);
+    const own = planner ? (p.planner ?? {}) : {};
+    const dropped = planner ? Object.keys(saved?.planner ?? {}).filter((k) => own[k] === undefined && (planner.settings[k]?.value ?? null) !== null) : [];
     const settings = {...Object.fromEntries(dropped.map((k) => [k, planner!.settings[k].value])), ...own};
     if (Object.keys(settings).length) props.settings = settings;
     // the same with a range taken out: half a turn or more is any way at all

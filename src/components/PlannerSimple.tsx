@@ -347,7 +347,8 @@ export function PlannerSimple({
         ? undefined
         : Math.max(first, 0.5 * width - Math.abs(num('blade_offset') ?? 0)) - 0.5 * blade;
   const spot = effective('turn_on_spot') === true;
-  const own = area ? ownSettings(area.own, area.openmower ?? {}, all, collision) : [];
+  // with OpenMower's slic3r planner the area's OpenMower values count and show above, only its MowBite settings here
+  const own = area ? ownSettings(area.own, slic3rPlans(planner) ? {} : (area.openmower ?? {}), all, collision) : [];
   const margins = ownMargins(map, area?.outline);
   const gap = num('bend_max_gap') ?? 0;
 
