@@ -915,11 +915,11 @@ export function PlannerSimple({
             )}
             {has('turn_radius_auto') && (
               <Row
-                label={tr('Wider turns where there is room')}
+                label={tr('Turn radius automatic')}
                 help={tr(FIELDS.turn_radius_auto.help)}
                 note={
                   effective('turn_radius_auto')
-                    ? tr('Each turn as wide as there is room for, none tighter than the turn radius.')
+                    ? tr('The planner picks the radius of each turn, at least the turn radius above.')
                     : tr('Off: every turn with the turn radius.')
                 }
                 source={others('turn_radius_auto') || ownLine('turn_radius_auto')}

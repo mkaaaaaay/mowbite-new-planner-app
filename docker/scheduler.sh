@@ -246,6 +246,8 @@ leftovers_after() {
   c=$(leftovers_conf)
   [ "$(field "$c" auto)" = true ] || return
   min=$(field "$c" min)
+  # a planner that sends the mower out for the leftovers itself (its setting leftovers_auto): not twice
+  case "$(rpc_call planner.settings '{}' 20)" in *'"leftovers_auto"'*) return ;; esac
   if [ -f "$LEFT" ]; then
     # the run that just finished was the one for the leftovers (a flag older than 6 h is a leftover itself)
     age=$(($(date +%s) - $(cat "$LEFT")))

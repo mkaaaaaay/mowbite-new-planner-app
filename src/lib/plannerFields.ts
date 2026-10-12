@@ -187,8 +187,8 @@ export const FIELDS: Record<string, Field> = {
     area: true,
   },
   turn_radius_auto: {
-    label: 'Wider turns where there is room',
-    help: 'The planner picks the radius of each turn itself, the turn radius is the least it takes. Fewer turns as tight as that, wider ones where there is room.',
+    label: 'Turn radius automatic',
+    help: 'The planner picks the radius of each turn itself, up to twice the turn radius where there is room. The turn radius is the least it takes. Only where no turn fits otherwise it drives a tighter half circle as wide as the lanes are apart, in place of turning on the spot.',
     group: 'turns',
     area: true,
   },

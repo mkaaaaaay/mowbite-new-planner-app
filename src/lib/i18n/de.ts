@@ -1040,7 +1040,7 @@ const de: Record<string, string> = {
   "about {time} by the planner for {n} of {m} areas, open the others in the map once": "ca. {time} laut Planer für {n} von {m} Flächen, die anderen einmal in der Karte öffnen",
   "A part better mowed another way gets lanes its own way, where that saves lanes.": "Ein Teil, der anders besser zu mähen ist, bekommt Bahnen in eigener Richtung, wo das Bahnen spart.",
   "As many as along the outline.": "So viele wie am Rand.",
-  "Each turn as wide as there is room for, none tighter than the turn radius.": "Jede Wende so weit, wie Platz ist, keine enger als der Wenderadius.",
+  "The planner picks the radius of each turn, at least the turn radius above.": "Der Planer wählt den Radius jeder Wende, mindestens den Wenderadius oben.",
   "fits the {time} until the end time": "passt in die {time} bis zur Endzeit",
   "How many rounds the mower drives round each obstacle, on their own from the outline passes. Automatic: as many as along the outline. 0: none, the lanes go round the obstacle.": "Wie viele Runden der Mäher um jedes Hindernis fährt, unabhängig von den Randrunden. Automatisch: so viele wie am Rand. 0: keine, die Bahnen gehen um das Hindernis herum.",
   "Length of all passes and stripes. The time is the planner's, corrected by the last {n} finished mows of this area.": "Länge aller Runden und Streifen. Die Zeit stammt vom Planer, korrigiert mit den letzten {n} abgeschlossenen Mähvorgängen dieser Fläche.",
@@ -1056,10 +1056,10 @@ const de: Record<string, string> = {
   "Only from this much left, in m²": "Erst ab so vielen Resten, in m²",
   "Parts with their own direction": "Teile mit eigener Richtung",
   "Passes around obstacles": "Runden um Hindernisse",
-  "Wider turns where there is room": "Weitere Wenden, wo Platz ist",
+  "Turn radius automatic": "Wenderadius automatisch",
   "A part of the lawn better mowed another way gets lanes of its own direction, only where the whole plan then needs fewer lanes. Not with crosshatch, rings or clean stripes.": "Ein Teil des Rasens, der anders besser zu mähen ist, bekommt Bahnen in eigener Richtung, nur wo der ganze Plan dann weniger Bahnen braucht. Nicht bei Kreuzmuster, Ringen oder sauberen Streifen.",
   "How many passes go round each obstacle, on their own from the outline passes. Automatic: as many as along the outline. 0: none, the lanes go round them.": "Wie viele Runden um jedes Hindernis gehen, unabhängig von den Randrunden. Automatisch: so viele wie am Rand. 0: keine, die Bahnen gehen darum herum.",
-  "The planner picks the radius of each turn itself, the turn radius is the least it takes. Fewer turns as tight as that, wider ones where there is room.": "Der Planer wählt den Radius jeder Wende selbst, der Wenderadius ist das Mindeste. Weniger so enge Wenden, weitere, wo Platz ist.",
+  "The planner picks the radius of each turn itself, up to twice the turn radius where there is room. The turn radius is the least it takes. Only where no turn fits otherwise it drives a tighter half circle as wide as the lanes are apart, in place of turning on the spot.": "Der Planer wählt den Radius jeder Wende selbst, bis zum Doppelten des Wenderadius, wo Platz ist. Der Wenderadius ist das Mindeste. Nur wo sonst keine Wende passt, fährt er einen engeren Halbkreis im Bahnabstand, statt auf der Stelle zu wenden.",
   "Drives in the plan": "Fahrten im Plan",
   "Turns in the plan": "Wenden im Plan",
   "Leftovers not mowed, the mower wasn't ready or it's dark or raining ({detail})": "Reste nicht gemäht, der Mäher war nicht bereit oder es ist dunkel oder regnet ({detail})",
@@ -1075,6 +1075,9 @@ const de: Record<string, string> = {
   "The planner didn't take it.": "Der Planer hat es nicht angenommen.",
   "What did the last mow leave?": "Was hat der letzte Mähvorgang übrig gelassen?",
   "After a finished mow the planner looks at the real track for pieces the mower missed (it drifted, went round something). On the dashboard you can have just those mowed, or it happens by itself: once the mower is back in the dock it goes out again for them. Only with the MowBite container on the mower.": "Nach einem abgeschlossenen Mähvorgang sucht der Planer in der echten Spur nach Stellen, die der Mäher ausgelassen hat (abgedriftet, um etwas herumgefahren). Auf dem Dashboard kannst du nur diese mähen lassen, oder es passiert von selbst: Sobald der Mäher wieder in der Station ist, fährt er dafür noch mal raus. Nur mit dem MowBite-Container auf dem Mäher.",
+  "Mow the leftovers automatically": "Reste automatisch nachmähen",
+  "After a mow the mower goes out again by itself when more than 0.3 m² it can reach was left, within 15 minutes of the end of the mow or not at all. Not in the rain, not with an emergency stop. It does not wait for daylight: after a mow that ended at dusk it goes out in the dark.": "Nach dem Mähen fährt der Mäher von selbst noch einmal los, wenn mehr als 0,3 m² erreichbar stehen geblieben sind, innerhalb von 15 Minuten nach dem Ende oder gar nicht. Nicht bei Regen, nicht bei Notaus. Auf Tageslicht wartet er nicht: Endet ein Mähvorgang in der Dämmerung, fährt er im Dunkeln los.",
+  "Not with OpenMower's slic3r planner, it plans no leftovers.": "Nicht mit dem slic3r-Planer von OpenMower, der plant keine Reste.",
 };
 
 export default de;
