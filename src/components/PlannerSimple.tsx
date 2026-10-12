@@ -719,23 +719,22 @@ export function PlannerSimple({
                 {autoPasses !== undefined && (
                   <button
                     className={passesAuto ? local.on : undefined}
-                    disabled={state.busy}
-                    onClick={() => void save('perimeter_passes', passesAuto ? undefined : autoPasses)}
+                    disabled={state.busy || passesAuto}
+                    onClick={() => void save('perimeter_passes', area && global('perimeter_passes') === autoPasses ? undefined : autoPasses)}
                   >
                     {tr('automatic')}
                   </button>
                 )}
-                {!passesAuto &&
-                  numberField(
-                    'passes',
-                    area && area.own.perimeter_passes === undefined ? '' : typeof passes === 'number' ? String(passes) : '',
-                    typeof passesShown === 'number' ? String(passesShown) : '',
-                    tr('rounds'),
-                    (text) => {
-                      const n = parse(text);
-                      void save('perimeter_passes', n === null ? undefined : Math.max(0, Math.round(n)));
-                    },
-                  )}
+                {numberField(
+                  'passes',
+                  passesAuto || (area && area.own.perimeter_passes === undefined) ? '' : typeof passes === 'number' ? String(passes) : '',
+                  typeof passesShown === 'number' && passesShown !== autoPasses ? String(passesShown) : '',
+                  tr('rounds'),
+                  (text) => {
+                    const n = parse(text);
+                    void save('perimeter_passes', n === null ? undefined : Math.max(0, Math.round(n)));
+                  },
+                )}
               </div>
             </Row>
           )}
@@ -756,23 +755,22 @@ export function PlannerSimple({
                 {autoObstacle !== undefined && (
                   <button
                     className={obstacleAuto ? local.on : undefined}
-                    disabled={state.busy}
-                    onClick={() => void save('obstacle_passes', obstacleAuto ? undefined : autoObstacle)}
+                    disabled={state.busy || obstacleAuto}
+                    onClick={() => void save('obstacle_passes', area && global('obstacle_passes') === autoObstacle ? undefined : autoObstacle)}
                   >
                     {tr('automatic')}
                   </button>
                 )}
-                {!obstacleAuto &&
-                  numberField(
-                    'obstaclePasses',
-                    area && area.own.obstacle_passes === undefined ? '' : typeof num('obstacle_passes') === 'number' ? String(num('obstacle_passes')) : '',
-                    typeof global('obstacle_passes') === 'number' && global('obstacle_passes') !== autoObstacle ? String(global('obstacle_passes')) : '',
-                    tr('rounds'),
-                    (text) => {
-                      const n = parse(text);
-                      void save('obstacle_passes', n === null ? undefined : Math.max(0, Math.round(n)));
-                    },
-                  )}
+                {numberField(
+                  'obstaclePasses',
+                  obstacleAuto || (area && area.own.obstacle_passes === undefined) ? '' : typeof num('obstacle_passes') === 'number' ? String(num('obstacle_passes')) : '',
+                  typeof global('obstacle_passes') === 'number' && global('obstacle_passes') !== autoObstacle ? String(global('obstacle_passes')) : '',
+                  tr('rounds'),
+                  (text) => {
+                    const n = parse(text);
+                    void save('obstacle_passes', n === null ? undefined : Math.max(0, Math.round(n)));
+                  },
+                )}
               </div>
             </Row>
           )}
