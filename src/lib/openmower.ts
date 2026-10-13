@@ -44,6 +44,9 @@ export const RPC = {
   plannerAngleReset: 'planner.angle.reset',
   // what a finished mow's real track left unmowed, as passes over it; armed, the mower drives those on the next start
   plannerLeftovers: 'planner.leftovers',
+  // sets parameters of nodes with a dynamic_reconfigure server while they run, {params: {name: value}}. the values
+  // aren't stored, a restart brings the yaml's back
+  setParams: 'params.set',
 } as const;
 
 export const ACTION = {

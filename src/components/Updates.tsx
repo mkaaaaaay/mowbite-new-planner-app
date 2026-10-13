@@ -3,7 +3,7 @@
 import {copyText} from '@/lib/clipboard';
 import {tr} from '@/lib/i18n';
 import {isApp} from '@/lib/native';
-import {APP_VERSION, checkNow, compareVersions, dismissUpdate, isNewer, setUpdateCheck, UPDATES, useUpdates} from '@/lib/updates';
+import {APP_VERSION, FROM_STORE, checkNow, compareVersions, dismissUpdate, isNewer, setUpdateCheck, UPDATES, useUpdates} from '@/lib/updates';
 import Link from 'next/link';
 import {useEffect, useState} from 'react';
 import {useMowerActions} from '@/hooks/useMowerActions';
@@ -12,6 +12,7 @@ import {rpcMethods} from '@/lib/rpc';
 import styles from './Updates.module.css';
 
 const UPDATE_COMMAND = 'docker compose pull && docker compose up -d';
+const PRIVACY_URL = 'https://github.com/mkaaaaaay/mowbite/blob/main/PRIVACY.md';
 
 // what's out of date: the android app itself, and the container on the mower
 function useOutdated() {
@@ -24,7 +25,7 @@ function useOutdated() {
     u,
     app,
     mower,
-    appOld: !!latest && app && isNewer(latest, APP_VERSION),
+    appOld: !FROM_STORE && !!latest && app && isNewer(latest, APP_VERSION),
     mowerOld: !!latest && !!mower && isNewer(latest, mower),
   };
 }
@@ -59,6 +60,9 @@ export function UpdateSettings({cardClass, checkClass}: {cardClass: string; chec
       <span className={styles.versions}>
         {app ? `${tr('App')} ${APP_VERSION} · ${tr('Mower')} ${mower ?? '?'}` : `MowBite ${APP_VERSION}`}
       </span>
+      <a className={styles.versions} href={PRIVACY_URL} target="_blank" rel="noreferrer">
+        {tr('Privacy policy')}
+      </a>
       <NewerOpenMower />
       {UPDATES && (
         <>

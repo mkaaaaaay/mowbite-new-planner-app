@@ -1,5 +1,5 @@
 import {useEffect, useSyncExternalStore} from 'react';
-import {apiBase} from './mowers';
+import {apiBase, mowerFetch} from './mowers';
 
 // Looks on github for a newer release. Off by default (it tells github your ip), switched on per
 // device in the settings, then once a day. "check now" works either way.
@@ -13,6 +13,8 @@ const DISMISSED_KEY = 'updateDismissed';
 const DAY = 24 * 3600e3;
 
 export const APP_VERSION = process.env.APP_VERSION ?? '0.0.0';
+// built for google play (STORE=play): the store updates the app there, no word about a newer apk
+export const FROM_STORE = process.env.APP_STORE === 'play';
 
 export interface Release {
   version: string;
@@ -122,7 +124,7 @@ export function dismissUpdate(version: string) {
 
 async function loadMowerVersion() {
   try {
-    const res = await fetch(`${apiBase()}/version.json`, {cache: 'no-store'});
+    const res = await mowerFetch(`${apiBase()}/version.json`, {cache: 'no-store'});
     if (res.ok) set({mower: ((await res.json()) as {version?: string}).version ?? null});
   } catch {}
 }

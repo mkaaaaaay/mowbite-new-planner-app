@@ -1,4 +1,6 @@
 import InfoTip from '@/components/InfoTip';
+import {useCanSetParams} from '@/components/MowerParamSettings';
+import Link from 'next/link';
 import {useAreaProperties} from '@/lib/areaProps';
 import {slic3rPlans, usePlannerSettings} from '@/lib/mowerBody';
 import {FIELDS} from '@/lib/plannerFields';
@@ -107,9 +109,17 @@ type Props = {
 
 // without the MowBite Planner: the per-area overrides of OpenMower's mowing settings, the angle and the plan
 export default function MowSettings(props: Props) {
+  const canSetParams = useCanSetParams();
   return (
     <div className={styles.mowSettings}>
-      <span className={styles.cardTitle}>{tr('Mowing settings')}</span>
+      <span className={styles.cardTitle}>
+        {tr('Mowing settings')}
+        {canSetParams && (
+          <Link className={styles.allAreas} href="/settings#openmower">
+            {tr('For all areas')}
+          </Link>
+        )}
+      </span>
       <p className={styles.dim}>{tr('Only for this area, saved with the map ("Save map").')}</p>
       {!props.byPlanner && <OpenMowerArea {...props} />}
       <AreaDirection {...props} />
