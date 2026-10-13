@@ -375,18 +375,17 @@ export function PlannerSimple({
           : null,
         ].filter(Boolean);
 
-  // the blade the planner spaces the lanes by, next to OpenMower's own
-  const bladeDiffers = !slic3r && typeof global('mower_width') === 'number' && !!toolWidth && Math.abs(blade - toolWidth) > 0.005;
+  // the blade the planner spaces the lanes by, never set: its default fits a YardForce, not every mower
+  const bladeDefault = !slic3r && !!all.mower_width && !all.mower_width.stored;
 
   return (
     <div className={local.simple}>
       {!slic3r && <NoSizesWarning />}
-      {bladeDiffers && !area && (
+      {bladeDefault && !area && (
         <p className={local.note}>
-          {tr(
-            "Blade: the planner has {a} cm, OpenMower {b} cm (tool_width). The planner's counts for its plans, a blade set too small means more lanes than needed. Change it under Mower sizes.",
-            {a: Math.round(blade * 1000) / 10, b: Math.round(toolWidth! * 1000) / 10},
-          )}
+          {tr("The blade is not set in the planner, it plans with {a} cm. Lanes are spaced by it: set your mower's blade under Mower sizes.", {
+            a: Math.round(blade * 1000) / 10,
+          })}
         </p>
       )}
       {area ? (

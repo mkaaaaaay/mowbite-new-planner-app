@@ -1090,7 +1090,7 @@ const de: Record<string, string> = {
   "collision check without effect, no mower sizes": "Kollisionsprüfung ohne Wirkung, keine Mäher-Maße",
   "No effect yet: the planner has no mower sizes.": "Wirkt noch nicht: Der Planer hat keine Mäher-Maße.",
   "For the body only once the planner has the mower sizes.": "Für den Körper erst, wenn der Planer die Mäher-Maße hat.",
-  "Blade: the planner has {a} cm, OpenMower {b} cm (tool_width). The planner's counts for its plans, a blade set too small means more lanes than needed. Change it under Mower sizes.": "Messer: Der Planer hat {a} cm, OpenMower {b} cm (tool_width). Für seine Pläne gilt der Wert des Planers, ein zu klein eingestelltes Messer heißt mehr Bahnen als nötig. Ändern unter Mäher-Maße.",
+  "The blade is not set in the planner, it plans with {a} cm. Lanes are spaced by it: set your mower's blade under Mower sizes.": "Das Messer ist im Planer nicht eingestellt, er plant mit {a} cm. Danach richtet sich der Bahnabstand: Stell das Messer deines Mähers unter Mäher-Maße ein.",
 };
 
 export default de;
