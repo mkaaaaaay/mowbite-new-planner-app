@@ -1082,6 +1082,15 @@ const de: Record<string, string> = {
   "On: lanes and the turns between them go no further out than the overlapping passes say. Where no curve fits there the mower turns on the spot, and a lane starts later where the outline passes already mowed. Off: the turns take the room they need in the outline passes, which looks like more overlap than set. Costs more turns on the spot, least with 2 overlapping passes.": "An: Bahnen und die Wenden dazwischen fahren nicht weiter nach außen, als die überlappenden Runden vorgeben. Wo dort kein Bogen passt, dreht der Mäher auf der Stelle, und eine Bahn beginnt später, wo die Randrunden schon gemäht haben. Aus: Die Wenden nehmen sich den Platz in den Randrunden, das sieht nach mehr Überlappung aus als eingestellt. Kostet mehr Drehungen auf der Stelle, am wenigsten bei 2 überlappenden Runden.",
   "Lanes and turns go no further out than the overlapping passes, more turning on the spot.": "Bahnen und Wenden fahren nicht weiter nach außen als die überlappenden Runden, dafür mehr Drehen auf der Stelle.",
   "Off: the turns take the room they need in the outline passes.": "Aus: Die Wenden nehmen sich den Platz in den Randrunden.",
+  "The planner has no mower sizes. It plans without checking the body: the collision check does nothing, and the front can swing out past the edge in turns.": "Der Planer hat keine Mäher-Maße. Er plant, ohne den Körper zu prüfen: Die Kollisionsprüfung wirkt nicht, und die Front kann in Wenden über den Rand schwenken.",
+  "The sizes set in this app ({w} cm wide, {l} cm long) only draw the mower on the map, the planner does not have them.": "Die in dieser App eingestellten Maße ({w} cm breit, {l} cm lang) zeichnen nur den Mäher auf der Karte, der Planer hat sie nicht.",
+  "Give these sizes to the planner": "Diese Maße dem Planer geben",
+  "Or set them under Mower sizes": "Oder unter Mäher-Maße einstellen",
+  "Set them under Mower sizes": "Unter Mäher-Maße einstellen",
+  "collision check without effect, no mower sizes": "Kollisionsprüfung ohne Wirkung, keine Mäher-Maße",
+  "No effect yet: the planner has no mower sizes.": "Wirkt noch nicht: Der Planer hat keine Mäher-Maße.",
+  "For the body only once the planner has the mower sizes.": "Für den Körper erst, wenn der Planer die Mäher-Maße hat.",
+  "Blade: the planner has {a} cm, OpenMower {b} cm (tool_width). The planner's counts for its plans, a blade set too small means more lanes than needed. Change it under Mower sizes.": "Messer: Der Planer hat {a} cm, OpenMower {b} cm (tool_width). Für seine Pläne gilt der Wert des Planers, ein zu klein eingestelltes Messer heißt mehr Bahnen als nötig. Ändern unter Mäher-Maße.",
 };
 
 export default de;

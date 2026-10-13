@@ -12,6 +12,8 @@ import {
   grownOutline,
   outlineOf,
   savePlannerSettings,
+  sizesBody,
+  slic3rPlans,
   usePlannerSettings,
   type BodySetting,
   type MowerBody,
@@ -19,7 +21,8 @@ import {
   type Outline,
 } from '@/lib/mowerBody';
 import {RpcError} from '@/lib/rpc';
-import {useEffect, useState} from 'react';
+import {settingsStore} from '@/lib/settings';
+import {useEffect, useState, useSyncExternalStore} from 'react';
 import local from './MowerBodySettings.module.css';
 
 // The mower's sizes for the MowBite Planner on the mower (planner.settings): it keeps the body clear of the edges in
@@ -98,6 +101,67 @@ function Sketch({body}: {body: MowerBody}) {
         {label(body.width)}
       </text>
     </svg>
+  );
+}
+
+// A planner that knows the body's sizes but has none: it plans without checking the body, whatever the collision check
+// and the distances say. Sizes set in this app before the planner came only draw the mower on the map, they are
+// offered to the planner here.
+export function NoSizesWarning() {
+  const settings = usePlannerSettings();
+  const app = useSyncExternalStore(settingsStore.subscribe, settingsStore.snapshot, settingsStore.serverSnapshot);
+  const [state, setState] = useState<{busy?: boolean; error?: string}>({});
+  const known = settings?.settings;
+  if (!known?.robot_width || !known.robot_front || !known.robot_rear || slic3rPlans(settings) || bodyFrom(settings)) return null;
+  const own = sizesBody(app.mower);
+
+  const take = async () => {
+    if (!own) return;
+    const changes: Record<string, unknown> = {robot_width: own.width, robot_front: own.front, robot_rear: own.rear};
+    if (known.mower_width && own.blade > 0) changes.mower_width = own.blade;
+    if (known.blade_ahead) changes.blade_ahead = own.bladeAhead;
+    if (known.blade_offset) changes.blade_offset = own.bladeOffset;
+    if (known.robot_outline && own.outline) changes.robot_outline = grownOutline(own.outline, OUTLINE_LEEWAY);
+    setState({busy: true});
+    try {
+      await savePlannerSettings(changes);
+      setState({});
+    } catch (e) {
+      setState({error: e instanceof RpcError && e.code !== 'timeout' ? e.message : tr('The mower did not answer.')});
+    }
+  };
+  const open = () => {
+    const fold = document.getElementById('fold-mowerSizes') as HTMLDetailsElement | null;
+    if (!fold) return;
+    fold.open = true;
+    fold.scrollIntoView({behavior: 'smooth', block: 'start'});
+  };
+
+  return (
+    <div className={local.warning}>
+      <span>
+        {tr(
+          'The planner has no mower sizes. It plans without checking the body: the collision check does nothing, and the front can swing out past the edge in turns.',
+        )}
+      </span>
+      {own && (
+        <>
+          <span>
+            {tr('The sizes set in this app ({w} cm wide, {l} cm long) only draw the mower on the map, the planner does not have them.', {
+              w: Math.round(own.width * 100),
+              l: Math.round((own.front + own.rear) * 100),
+            })}
+          </span>
+          <button type="button" disabled={state.busy} onClick={() => void take()}>
+            {state.busy ? tr('Saving…') : tr('Give these sizes to the planner')}
+          </button>
+        </>
+      )}
+      <button type="button" onClick={open}>
+        {own ? tr('Or set them under Mower sizes') : tr('Set them under Mower sizes')}
+      </button>
+      {state.error && <span>{state.error}</span>}
+    </div>
   );
 }
 

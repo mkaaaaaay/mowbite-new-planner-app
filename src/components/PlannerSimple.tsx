@@ -8,6 +8,7 @@ import {areasWith, areasWithDirection, ownMargins, ownSettings, shown, type Area
 import {RpcError} from '@/lib/rpc';
 import {useEffect, useState} from 'react';
 import InfoTip from './InfoTip';
+import {NoSizesWarning} from './MowerBodySettings';
 import local from './PlannerSimple.module.css';
 
 // The planner's settings that matter for a garden, in the same sections for all areas and for one area: pattern,
@@ -365,11 +366,29 @@ export function PlannerSimple({
         auto ? tr('spacing automatic') : spacingCm !== null ? tr('{cm} cm apart', {cm: Math.round(spacingCm * 10) / 10}) : null,
         typeof passes === 'number' ? (passesAuto ? tr('outline passes automatic') : tr('{n} outline passes', {n: passes})) : null,
         has('edge_margin') ? tr('{cm} cm off the edge', {cm: cm(global('edge_margin'))}) : null,
-        has('body_fit') ? (global('body_fit') ? tr('collision check on') : tr('collision check off')) : null,
+        has('body_fit')
+          ? global('body_fit')
+            ? sized || !has('robot_front')
+              ? tr('collision check on')
+              : tr('collision check without effect, no mower sizes')
+            : tr('collision check off')
+          : null,
         ].filter(Boolean);
+
+  // the blade the planner spaces the lanes by, next to OpenMower's own
+  const bladeDiffers = !slic3r && typeof global('mower_width') === 'number' && !!toolWidth && Math.abs(blade - toolWidth) > 0.005;
 
   return (
     <div className={local.simple}>
+      {!slic3r && <NoSizesWarning />}
+      {bladeDiffers && !area && (
+        <p className={local.note}>
+          {tr(
+            "Blade: the planner has {a} cm, OpenMower {b} cm (tool_width). The planner's counts for its plans, a blade set too small means more lanes than needed. Change it under Mower sizes.",
+            {a: Math.round(blade * 1000) / 10, b: Math.round(toolWidth! * 1000) / 10},
+          )}
+        </p>
+      )}
       {area ? (
         <div className={local.summary}>
           <p className={local.line}>{tr('Only for this area. Saved with the map ("Save map"), the preview shows it right away.')}</p>
@@ -834,7 +853,7 @@ export function PlannerSimple({
             <Row
               label={tr('Distance to the edge')}
               help={tr('How far the mower keeps its whole body off the real edge, everywhere. More is safer along walls and beds, less mows closer.')}
-              note={tr('The body keeps this far off the real edge.')}
+              note={sized || !has('robot_front') ? tr('The body keeps this far off the real edge.') : tr('For the body only once the planner has the mower sizes.')}
               source={others('edge_margin') || ownLine('edge_margin')}
             >
               {cmField('edge_margin')}
@@ -947,7 +966,13 @@ export function PlannerSimple({
                 help={tr(
                   'Every plan is checked against the mower’s body. Where it would stick out past a real edge or into an obstacle (a turn, a loop in a tight spot), the mower drives there another way and leaves a little out where nothing fits. The places show on the map with the plan. Off: the plan as it comes, the distances still count.',
                 )}
-                note={effective('body_fit') === false ? tr('Off: the plan stays as it comes.') : tr('Where the body would stick out, it drives another way.')}
+                note={
+                  effective('body_fit') === false
+                    ? tr('Off: the plan stays as it comes.')
+                    : sized || !has('robot_front')
+                      ? tr('Where the body would stick out, it drives another way.')
+                      : tr('No effect yet: the planner has no mower sizes.')
+                }
                 source={others('body_fit')}
               >
                 {toggle('body_fit')}

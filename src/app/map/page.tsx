@@ -40,8 +40,8 @@ import Problems, {problemText} from './Problems';
 import {BodyCheck, PlanChecks} from './BodyCheck';
 import {AreaPlanner} from './AreaPlanner';
 import {Fold} from './Fold';
-import {slic3rPlans, useMowerBody, usePlannerSettings, type BodySpot} from '@/lib/mowerBody';
-import {MowerBodySettings} from '@/components/MowerBodySettings';
+import {bodyFrom, slic3rPlans, useMowerBody, usePlannerSettings, type BodySpot} from '@/lib/mowerBody';
+import {MowerBodySettings, NoSizesWarning} from '@/components/MowerBodySettings';
 import {PlannerSettings} from '@/components/PlannerSettings';
 import {PlannerSimple} from '@/components/PlannerSimple';
 import simpleStyles from '@/components/PlannerSimple.module.css';
@@ -192,6 +192,8 @@ function MapEditor() {
   const body = useMowerBody();
   // a planner that checks the mower's body in every plan (it has body_fit): what it found shows with the plan
   const collisionMode = !!plannerSettings?.settings.body_fit && !slic3r;
+  // a planner that takes the body's sizes and has none: it checks nothing, whatever sizes the app itself draws with
+  const unsized = !!plannerSettings?.settings.robot_front && !bodyFrom(plannerSettings);
   const [bodySpots, setBodySpots] = useState<BodySpot[] | null>(null);
   const {toolWidth, angleOffset, offsetIsAbsolute, angleIncrement, shownArea, autoAngle, touchAngle, mismatch, realPlan, plan, stripes, planLength, planRequest} =
     useMowPlan({params, liveMap, shownMap, selectedAreaId, pastJobs, areaProps, showStripes, previewCorrection, draggingPoint});
@@ -908,9 +910,11 @@ function MapEditor() {
                       <AreaPlanner properties={selectedArea.properties} update={updateProperties} remember={remember} />
                     </div>
                   </details>
+                  {realPlan && !slic3r && unsized && <NoSizesWarning />}
                   {body &&
                     realPlan &&
                     !slic3r &&
+                    !unsized &&
                     (collisionMode ? (
                       <PlanChecks checks={realPlan.checks} on={(selectedArea.properties.planner?.body_fit ?? plannerSettings?.settings.body_fit?.value) !== false} />
                     ) : (
