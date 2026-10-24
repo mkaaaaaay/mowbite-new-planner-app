@@ -122,3 +122,29 @@
   font-size: 13px;
   color: var(--text-secondary);
 }
+
+/* --- Neu: Scrollbares Log-Terminal --- */
+.logBox {
+  max-height: 280px;
+  overflow-y: auto;
+  overflow-x: auto;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--well, rgba(0, 0, 0, 0.3));
+  border: 1px solid var(--card-border);
+  font-family: monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.componentRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
