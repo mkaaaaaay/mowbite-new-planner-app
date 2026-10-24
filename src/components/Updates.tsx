@@ -16,7 +16,6 @@ import {
   missingOnMower,
   setBehindNote,
   setUpdateCheck,
-  UPDATES,
   useUpdates,
 } from '@/lib/updates';
 import Link from 'next/link';
@@ -28,22 +27,17 @@ import styles from './Updates.module.css';
 import {AutoUpdate} from './AutoUpdate';
 import {CreditsTrigger} from './Credits';
 
-// the newest version, then the old image goes (and any other no container uses and no name points to)
 const UPDATE_COMMAND = 'docker compose pull && docker compose up -d && docker image prune -f';
 const PRIVACY_URL = 'https://github.com/mkaaaaaay/mowbite/blob/main/PRIVACY.md';
 const LICENSE_URL = 'https://github.com/mkaaaaaay/mowbite#license';
 
 const noop = () => () => {};
 
-// what's out of date: the android app itself, and the container on the mower
 function useOutdated() {
   const u = useUpdates();
-  // (as the page was built ahead first, else the page put together in the app doesn't match it)
   const app = useSyncExternalStore(noop, isApp, () => false);
-  // in the browser the page comes from the container, so its version is the mower's
   const mower = u.mower ?? (app ? null : APP_VERSION);
   const latest = u.latest?.version;
-  // in the browser the page comes from the container, it has what it needs
   const missing = app && !isDemo() ? missingOnMower(u.level) : [];
   return {
     u,
@@ -51,15 +45,11 @@ function useOutdated() {
     mower,
     missing,
     appOld: !FROM_STORE && !!latest && app && isNewer(latest, APP_VERSION),
-    // from the Play Store the store brings it, nothing to download here
     storeOld: FROM_STORE && !!latest && app && isNewer(latest, APP_VERSION),
-    // the demo has no container to update
     mowerOld: !isDemo() && !!latest && !!mower && isNewer(latest, mower),
   };
 }
 
-// what the app leaves out because the mower's OpenMower doesn't have it yet. only when the mower can tell
-// (rpc.methods) and its actions arrived, things only some forks have aren't mentioned
 function NewerOpenMower() {
   const {knowsAction} = useMowerActions();
   const [methods, setMethods] = useState<Set<string> | null>(null);
@@ -78,7 +68,6 @@ function NewerOpenMower() {
   return <p className={styles.versions}>{tr('A newer OpenMower on the mower also brings: {list}.', {list: missing.map((m) => tr(m)).join(', ')})}</p>;
 }
 
-// a command to run on the mower, with a button that copies it
 export function CopyCommand({command}: {command: string}) {
   const [copied, setCopied] = useState(false);
   return (
@@ -98,7 +87,6 @@ export function CopyCommand({command}: {command: string}) {
   );
 }
 
-// how MowBite on the mower gets the newest version, to copy
 export function UpdateCommand() {
   return (
     <>
@@ -108,10 +96,8 @@ export function UpdateCommand() {
   );
 }
 
-// the version after a name, when the mower told it (one from before doesn't)
 export const versionNote = (v: string | null) => (v ? ` (${v})` : '');
 
-// the app is newer than MowBite on the mower, and some of it needs that one newer too
 const behindText = (mower: string | null, missing: string[]) =>
   tr("MowBite on the mower{old} is older than this app. Until it's updated, this doesn't work yet: {list}.", {
     old: versionNote(mower),
@@ -123,76 +109,62 @@ export function UpdateSettings({cardClass, checkClass}: {cardClass: string; chec
 
   return (
     <section className={cardClass} id="updates">
-      <h2>{tr('Updates')}</h2>
       <CreditsTrigger className={styles.versions}>
         {app ? `${tr('App')} ${APP_VERSION} · ${tr('Mower')} ${mower ?? (u.level === 0 ? tr('older version') : '?')}` : `MowBite ${APP_VERSION}`}
       </CreditsTrigger>
-      <a className={styles.versions} href={PRIVACY_URL} target="_blank" rel="noreferrer">
-        {tr('Privacy policy')}
-      </a>
-      {/* copyright and license, versions passed on with changes keep showing them */}
-      <span className={[styles.versions, styles.legal].join(' ')}>
-        © 2026 mkay · {tr('Free software under the GPL-3.0: you may pass it on and change it under its terms. It comes without any warranty.')}{' '}
-        <a href={LICENSE_URL} target="_blank" rel="noreferrer">
-          {tr('License and source code')}
-        </a>
-      </span>
+      
       <NewerOpenMower />
-      {UPDATES && (
-        <label className={checkClass}>
-          <input type="checkbox" checked={u.enabled} onChange={(e) => setUpdateCheck(e.target.checked)} />
-          {tr('Look for updates once a day (asks GitHub, which sees your IP address)')}
-        </label>
-      )}
+      
+      <label className={checkClass}>
+        <input type="checkbox" checked={u.enabled} onChange={(e) => setUpdateCheck(e.target.checked)} />
+        {tr('Look for updates once a day (asks GitHub, which sees your IP address)')}
+      </label>
       {app && (
         <label className={checkClass}>
           <input type="checkbox" checked={!u.behindNever} onChange={(e) => setBehindNote(e.target.checked)} />
           {tr('A note on the dashboard when MowBite on the mower is too old for something in the app')}
         </label>
       )}
-      {UPDATES && (
-        <>
-          <div className={styles.status}>
-            <button className={styles.button} onClick={() => void checkNow()} disabled={u.checking}>
-              {u.checking ? tr('checking…') : tr('Check now')}
-            </button>
-            <span className={styles.versions}>
-              {u.failed
-                ? tr("Couldn't reach GitHub.")
-                : u.latest
-                  ? appOld || mowerOld
-                    ? ''
-                    : storeOld
-                      ? tr('Version {v} is out, the app gets it from the Play Store.', {v: u.latest.version})
-                      : compareVersions(APP_VERSION, u.latest.version) > 0
-                      ? tr("You're on a pre-release, the newest published one is {v}.", {v: u.latest.version})
-                      : tr('Up to date, the newest release is {v}.', {v: u.latest.version})
-                  : ''}
-            </span>
-          </div>
+      
+      <div className={styles.status}>
+        <button className={styles.button} onClick={() => void checkNow()} disabled={u.checking}>
+          {u.checking ? tr('checking…') : tr('Check now')}
+        </button>
+        <span className={styles.versions}>
+          {u.failed
+            ? tr("Couldn't reach GitHub.")
+            : u.latest
+              ? appOld || mowerOld
+                ? ''
+                : storeOld
+                  ? tr('Version {v} is out, the app gets it from the Play Store.', {v: u.latest.version})
+                  : compareVersions(APP_VERSION, u.latest.version) > 0
+                  ? tr("You're on a pre-release, the newest published one is {v}.", {v: u.latest.version})
+                  : tr('Up to date, the newest release is {v}.', {v: u.latest.version})
+              : ''}
+        </span>
+      </div>
 
-          <AutoUpdate checkClass={checkClass} />
+      <AutoUpdate checkClass={checkClass} />
 
-          {u.latest && appOld && (
-            <div className={styles.news}>
-              <span>
-                {tr('Version {v} of the app is out.', {v: u.latest.version})}{' '}
-                <a href={u.latest.url} target="_blank" rel="noreferrer">
-                  {tr("What's new")}
-                </a>
-              </span>
-              {u.latest.apk && (
-                <div>
-                  <button className={[styles.button, styles.primary].join(' ')} // the app hands links to other sites to the phone's browser, which downloads the apk
-                    onClick={() => (window.location.href = u.latest!.apk!)}>
-                    {tr('Download and install')}
-                  </button>
-                </div>
-              )}
-              <span className={styles.versions}>{tr('Android asks whether to install it, your settings stay.')}</span>
+      {u.latest && appOld && (
+        <div className={styles.news}>
+          <span>
+            {tr('Version {v} of the app is out.', {v: u.latest.version})}{' '}
+            <a href={u.latest.url} target="_blank" rel="noreferrer">
+              {tr("What's new")}
+            </a>
+          </span>
+          {u.latest.apk && (
+            <div>
+              <button className={[styles.button, styles.primary].join(' ')}
+                onClick={() => (window.location.href = u.latest!.apk!)}>
+                {tr('Download and install')}
+              </button>
             </div>
           )}
-        </>
+          <span className={styles.versions}>{tr('Android asks whether to install it, your settings stay.')}</span>
+        </div>
       )}
 
       {((u.latest && mowerOld) || missing.length > 0) && (
@@ -209,12 +181,23 @@ export function UpdateSettings({cardClass, checkClass}: {cardClass: string; chec
           <UpdateCommand />
         </div>
       )}
+
+      {/* Rechtliches & Datenschutz ganz nach unten verschoben */}
+      <div style={{marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '6px'}}>
+        <a className={styles.versions} href={PRIVACY_URL} target="_blank" rel="noreferrer">
+          {tr('Privacy policy')}
+        </a>
+        <span className={[styles.versions, styles.legal].join(' ')}>
+          © 2026 mkay · {tr('Free software under the GPL-3.0: you may pass it on and change it under its terms. It comes without any warranty.')}{' '}
+          <a href={LICENSE_URL} target="_blank" rel="noreferrer">
+            {tr('License and source code')}
+          </a>
+        </span>
+      </div>
     </section>
   );
 }
 
-// on the dashboard, when MowBite on the mower is too old for some of the app or a check found something, and it wasn't
-// waved away
 export function UpdateBanner() {
   const {u, mower, missing, appOld, mowerOld} = useOutdated();
   if (missing.length > 0 && !u.behindNever && u.behindDismissed !== behindKey(mower)) {
@@ -234,7 +217,7 @@ export function UpdateBanner() {
       </div>
     );
   }
-  if (!UPDATES || !u.latest || !(appOld || mowerOld) || u.dismissed === u.latest.version) return null;
+  if (!u.latest || !(appOld || mowerOld) || u.dismissed === u.latest.version) return null;
   const v = u.latest.version;
   return (
     <div className={styles.banner}>
